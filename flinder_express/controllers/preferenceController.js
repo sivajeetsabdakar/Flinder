@@ -33,7 +33,7 @@ const preferencesSchema = Joi.object({
     distance: Joi.number(),
     showMeToOthers: Joi.boolean()
   }),
-  interests: Joi.object()
+  interests: Joi.array().items(Joi.string())
 });
 
 /**
