@@ -13,8 +13,7 @@ const getDiscoveryProfiles = async (req, res) => {
     
     console.log(`Processing discovery request for user: ${userId}, limit: ${limit}, offset: ${offset}`);
     
-    // Get discovery profiles directly from the model
-    // We're passing only userId because we're not filtering on specific preferences
+    // Get discovery profiles with ML-powered match scores
     const { profiles, pagination, error } = await discoveryModel.getDiscoveryProfiles(
       userId,
       limit,
@@ -30,10 +29,15 @@ const getDiscoveryProfiles = async (req, res) => {
       });
     }
     
+    // Count profiles with match scores
+    const profilesWithScores = profiles.filter(profile => profile.matchScore !== null).length;
+    console.log(`Returning ${profiles.length} profiles (${profilesWithScores} with match scores)`);
+    
     return res.status(200).json({
       success: true,
       profiles,
-      pagination
+      pagination,
+      mlEnhanced: profilesWithScores > 0
     });
   } catch (error) {
     console.error('Get discovery profiles error:', error);

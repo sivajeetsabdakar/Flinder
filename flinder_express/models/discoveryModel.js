@@ -1,14 +1,55 @@
 const supabase = require('../supabaseClient');
+const axios = require('axios');
+
+/**
+ * Call batch-match API on ML server to get similarity scores
+ * @param {number} currentUserNumericId - Current user's numeric ID 
+ * @param {Array} filteredUserNumericIds - Array of numeric user IDs to match against
+ * @returns {Object} Matches with similarity scores
+ */
+const getBatchMatches = async (currentUserNumericId, filteredUserNumericIds) => {
+  try {
+    // ML server URL should be stored in environment variables
+    const ML_SERVER_URL = process.env.ML_SERVER_URL || 'http://localhost:5000';
+    
+    console.log(`Sending batch match request to ML server for user ${currentUserNumericId} with ${filteredUserNumericIds.length} filtered users`);
+    
+    // Make API call to ML server
+    const response = await axios.post(`${ML_SERVER_URL}/api/batch-match`, {
+      current_user_id: currentUserNumericId,
+      filtered_user_ids: filteredUserNumericIds
+    });
+    
+    console.log(`Received ${response.data.matches.length} matches from ML server`);
+    
+    return { matches: response.data.matches, error: null };
+  } catch (error) {
+    console.error('Batch match API error:', error);
+    return { matches: [], error };
+  }
+};
 
 /**
  * Get potential roommate matches based on user preferences
- * @param {string} userId - User ID
+ * @param {string} userId - User ID (UUID)
  * @param {number} limit - Number of profiles to return (pagination)
  * @param {number} offset - Offset for pagination
  * @returns {Object} Preferences and pagination info or error
  */
 const getDiscoveryProfiles = async (userId, limit = 10, offset = 0) => {
   try {
+    // First get the current user's numeric ID
+    const { data: currentUser, error: userError } = await supabase
+      .from('users')
+      .select('user_id')
+      .eq('id', userId)
+      .single();
+      
+    if (userError) throw userError;
+    
+    const currentUserNumericId = currentUser.user_id;
+    console.log(`Current user UUID: ${userId}, Numeric ID: ${currentUserNumericId}`);
+    
     // Get current user's preferences to find their city
     const { data: userPreference, error: userPrefError } = await supabase
       .from('preferences')
@@ -30,7 +71,7 @@ const getDiscoveryProfiles = async (userId, limit = 10, offset = 0) => {
       };
     }
 
-    // Get ALL other users' preferences (no SQL filtering by city)
+    // Get ALL other users' preferences with user_id (integer) for ML server
     const { data: allPreferences, error } = await supabase
       .from('preferences')
       .select(`
@@ -40,7 +81,7 @@ const getDiscoveryProfiles = async (userId, limit = 10, offset = 0) => {
         non_critical,
         discovery_settings,
         interests,
-        users:user_id (id, email, name)
+        users:user_id (id, user_id, email, name)
       `)
       .neq('user_id', userId); // Only exclude current user
       
@@ -51,20 +92,64 @@ const getDiscoveryProfiles = async (userId, limit = 10, offset = 0) => {
     // Filter preferences by city in JavaScript
     const filteredPreferences = allPreferences.filter(pref => {
       const prefCity = pref.critical?.location?.city;
-      console.log(`Checking user ${pref.user_id} with city: ${prefCity}`);
       return prefCity === userCity;
     });
     
     console.log(`Filtered to ${filteredPreferences.length} matching preferences by city: ${userCity}`);
     
+    // Map between numeric user_id and UUID for lookup after ML call
+    const userIdMapping = {};
+    
+    // Get numeric user IDs for batch matching
+    const filteredUserNumericIds = filteredPreferences.map(pref => {
+      const numericId = pref.users.user_id;
+      const uuid = pref.user_id;
+      userIdMapping[numericId] = uuid;
+      return numericId;
+    });
+    
+    // Call ML server for batch matching if we have filtered users
+    let matchResults = [];
+    if (filteredUserNumericIds.length > 0) {
+      const { matches, error: mlError } = await getBatchMatches(currentUserNumericId, filteredUserNumericIds);
+      
+      if (!mlError && matches) {
+        matchResults = matches;
+        console.log('Successfully received match results from ML server');
+      } else {
+        console.warn('Failed to get match results from ML server, proceeding without similarity scores');
+      }
+    }
+    
+    // Create a map of numeric user IDs to match results for easy lookup
+    const matchMap = {};
+    matchResults.forEach(match => {
+      // Convert numeric ID back to UUID for our system
+      const uuid = userIdMapping[match.user_id];
+      if (uuid) {
+        matchMap[uuid] = match;
+      }
+    });
+    
+    // Sort filtered preferences by match score (if available)
+    const sortedPreferences = [...filteredPreferences].sort((a, b) => {
+      const scoreA = matchMap[a.user_id]?.similarity || 0;
+      const scoreB = matchMap[b.user_id]?.similarity || 0;
+      return scoreB - scoreA; // Sort by descending similarity
+    });
+    
     // Apply pagination in JavaScript
-    const total = filteredPreferences.length;
-    const paginatedPreferences = filteredPreferences.slice(offset, offset + limit);
+    const total = sortedPreferences.length;
+    const paginatedPreferences = sortedPreferences.slice(offset, offset + limit);
     
     // Format preferences for API response
     const formattedProfiles = paginatedPreferences.map(pref => {
+      // Get match data if available
+      const matchData = matchMap[pref.user_id];
+      
       return {
         userId: pref.user_id,
+        numericUserId: pref.users.user_id,
         bio: pref.critical?.roomType || "", // Using roomType as stand-in for bio
         generatedDescription: `User looking for housing in ${pref.critical?.location?.city || "unknown location"}`,
         interests: pref.interests || [],
@@ -80,7 +165,13 @@ const getDiscoveryProfiles = async (userId, limit = 10, offset = 0) => {
         lifestyle: {
           schedule: pref.non_critical?.schedule || "unknown",
           cleaningHabits: pref.non_critical?.cleaningHabits || "unknown"
-        }
+        },
+        // Add match data if available
+        matchScore: matchData ? {
+          similarity: matchData.similarity,
+          matchProbability: matchData.match_probability,
+          interpretation: matchData.interpretation
+        } : null
       };
     });
     
