@@ -28,6 +28,34 @@ class AuthProvider with ChangeNotifier {
       if (isAuth) {
         final userModel = await AuthService.getCurrentUser();
         _user = userModel != null ? User.fromUserModel(userModel) : null;
+
+        // Check if this is a development hot reload - maintain the profile completion status
+        // This prevents redirecting to profile completion after hot reload
+        if (_user != null && !(_user!.profileCompleted)) {
+          // Only check local storage again if profile is not completed in memory
+          try {
+            final storedCompleted =
+                await AuthService.getProfileCompletionStatus();
+            if (storedCompleted) {
+              // Create a new User instance with updated profile completion status
+              _user = User(
+                id: _user!.id,
+                email: _user!.email,
+                name: _user!.name,
+                profileCompleted: true,
+                onlineStatus: _user!.onlineStatus,
+                lastOnline: _user!.lastOnline,
+                createdAt: _user!.createdAt,
+                verificationStatus: _user!.verificationStatus,
+              );
+              print(
+                'Auth Provider: Restored profile completion status from storage',
+              );
+            }
+          } catch (e) {
+            print('Auth Provider: Error checking stored profile status: $e');
+          }
+        }
       }
     } catch (e) {
       _error = e.toString();

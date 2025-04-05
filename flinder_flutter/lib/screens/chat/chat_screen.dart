@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/chat/chat_thread_item.dart';
 import 'chat_detail_screen.dart';
+import 'create_group_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({Key? key}) : super(key: key);
@@ -70,6 +71,11 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBarWithLogout(
         title: 'Chats',
         additionalActions: [
+          IconButton(
+            icon: const Icon(Icons.group_add),
+            tooltip: 'Create Group Chat',
+            onPressed: _navigateToCreateGroup,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -216,24 +222,88 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _showNewChatDialog() {
-    // This is a placeholder - in a real app, you'd show a dialog or screen
-    // to select users to chat with or create a group
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Start a New Chat'),
-            content: const Text(
-              'This feature will allow you to select users to chat with. '
-              'It will be implemented in a future update.',
+            backgroundColor: AppTheme.darkGrey,
+            title: const Text(
+              'Start a Conversation',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(
+                    Icons.person,
+                    color: AppTheme.primaryPurple,
+                  ),
+                  title: const Text(
+                    'New Direct Message',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    // Direct message functionality would go here
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Direct messaging will be available soon',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(color: Colors.grey),
+                ListTile(
+                  leading: const Icon(
+                    Icons.group_add,
+                    color: AppTheme.primaryPurple,
+                  ),
+                  title: const Text(
+                    'Create Group Chat',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _navigateToCreateGroup();
+                  },
+                ),
+              ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: const Text('Cancel'),
               ),
             ],
           ),
+    );
+  }
+
+  void _navigateToCreateGroup() {
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You need to be logged in to create a group'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final chatContext = Provider.of<ChatContext>(context, listen: false);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => CreateGroupScreen(
+              existingThreads: chatContext.threads,
+              currentUserId: _currentUserId!,
+            ),
+      ),
     );
   }
 }

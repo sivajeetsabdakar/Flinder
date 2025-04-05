@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS messages (
   is_read BOOLEAN DEFAULT FALSE,
   attachment TEXT, -- URL to attachment
   attachment_type TEXT, -- Type of attachment (image, file, etc.)
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_system_message BOOLEAN DEFAULT FALSE
 );
 
 -- Indexes for performance

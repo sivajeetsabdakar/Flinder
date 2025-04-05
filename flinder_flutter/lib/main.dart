@@ -89,6 +89,8 @@ class MyApp extends StatelessWidget {
         initialRoute: AppRouter.splashRoute,
         onGenerateRoute: AppRouter.onGenerateRoute,
         navigatorObservers: [navigatorObserver], // Add the navigator observer
+        home:
+            const SizedBox(), // This ensures the '/' route doesn't show an error
       ),
     );
   }

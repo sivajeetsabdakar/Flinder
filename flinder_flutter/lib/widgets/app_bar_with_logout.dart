@@ -10,6 +10,7 @@ class AppBarWithLogout extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? additionalActions;
   final bool centerTitle;
   final Color? backgroundColor;
+  final PreferredSizeWidget? bottom;
 
   const AppBarWithLogout({
     Key? key,
@@ -17,6 +18,7 @@ class AppBarWithLogout extends StatelessWidget implements PreferredSizeWidget {
     this.additionalActions,
     this.centerTitle = true,
     this.backgroundColor,
+    this.bottom,
   }) : super(key: key);
 
   @override
@@ -32,6 +34,7 @@ class AppBarWithLogout extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: centerTitle,
       backgroundColor: backgroundColor ?? AppTheme.darkerPurple,
       elevation: 0,
+      bottom: bottom,
       actions: [
         if (additionalActions != null) ...additionalActions!,
         IconButton(
@@ -44,7 +47,8 @@ class AppBarWithLogout extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize =>
+      Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0.0));
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(

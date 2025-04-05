@@ -295,190 +295,279 @@ class _SwipeCardState extends State<SwipeCard>
   }
 
   Widget _buildCardContent(UserProfile profile) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppTheme.darkerPurple.withOpacity(0.7),
-            AppTheme.darkBackground,
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryPurple.withOpacity(0.3),
-            blurRadius: 15,
-            spreadRadius: 5,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Material(
-          color: Colors.transparent,
-          child: Stack(
-            children: [
-              // Profile photo
-              Positioned.fill(
-                child:
-                    profile.photoUrl != null
-                        ? CachedNetworkImage(
-                          imageUrl: profile.photoUrl!,
-                          fit: BoxFit.cover,
-                          placeholder:
-                              (context, url) => Container(
-                                color: AppTheme.darkGrey,
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    color: AppTheme.primaryPurple,
-                                  ),
-                                ),
-                              ),
-                          errorWidget:
-                              (context, url, error) => Container(
-                                color: AppTheme.darkGrey,
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.person,
-                                        size: 100,
-                                        color: AppTheme.primaryPurple
-                                            .withOpacity(0.5),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Image not available',
-                                        style: TextStyle(color: Colors.white70),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                        )
-                        : Container(
-                          color: AppTheme.darkGrey,
-                          child: Center(
-                            child: Icon(
-                              Icons.person,
-                              size: 100,
-                              color: AppTheme.primaryPurple.withOpacity(0.5),
-                            ),
-                          ),
-                        ),
-              ),
+    // Debug profile name
+    print(
+      'Building card for profile: ${profile.name}, ID: ${profile.preferences?['UserID'] ?? 'unknown'}',
+    );
 
-              // Gradient overlay for text
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 200,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.8),
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      color: Colors.black,
+      child: Stack(
+        children: [
+          // Main image placeholder
+          Positioned.fill(
+            child: Container(
+              color: Colors.grey.shade900,
+              child:
+                  profile.photoUrl != null && profile.photoUrl!.isNotEmpty
+                      ? CachedNetworkImage(
+                        imageUrl: profile.photoUrl!,
+                        fit: BoxFit.cover,
+                        placeholder:
+                            (context, url) => Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppTheme.primaryPurple,
+                                ),
+                              ),
+                            ),
+                        errorWidget:
+                            (context, url, error) => const Center(
+                              child: Icon(
+                                Icons.person,
+                                size: 100,
+                                color: Colors.grey,
+                              ),
+                            ),
+                      )
+                      : const Center(
+                        child: Icon(
+                          Icons.person,
+                          size: 100,
+                          color: Colors.grey,
+                        ),
+                      ),
+            ),
+          ),
+
+          // Top banner with user ID
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                ),
+              ),
+              child: Text(
+                "ID: ${profile.preferences?['UserID'] ?? 'Unknown'}",
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ),
+          ),
+
+          // Bottom gradient and info
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.95),
+                    Colors.black.withOpacity(0.8),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.7, 1.0],
+                ),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Name with larger font and white color for emphasis
+                  Text(
+                    profile.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  // Age and online status row
+                  Row(
+                    children: [
+                      Text(
+                        "${profile.age} years",
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (profile.preferences != null &&
+                          profile.preferences!.containsKey('Online') &&
+                          profile.preferences!['Online'] == 'Yes')
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'Online',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Location with icon
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        color: Colors.white70,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          profile.location,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Show room type and budget
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Row(
+                      children: [
+                        _buildTagChip(profile.roomType),
+                        const SizedBox(width: 8),
+                        _buildTagChip(profile.budget ?? 'Flexible'),
                       ],
                     ),
                   ),
-                ),
-              ),
 
-              // Profile information
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 24,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${profile.name}, ${profile.age}',
+                  // Show interests as chips
+                  if (profile.interests != null &&
+                      profile.interests!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children:
+                            profile.interests!
+                                .take(3)
+                                .map((interest) => _buildInterestChip(interest))
+                                .toList(),
+                      ),
+                    ),
+
+                  // Description if available
+                  if (profile.preferences != null &&
+                      profile.preferences!.containsKey('Description') &&
+                      profile.preferences!['Description'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        profile.preferences!['Description'],
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+
+                  // Last active info
+                  if (profile.preferences != null &&
+                      profile.preferences!.containsKey('Last active'))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.access_time,
+                            color: Colors.white60,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Last active: ${profile.preferences!['Last active']}',
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                              color: Colors.white60,
+                              fontSize: 12,
                             ),
                           ),
-                        ),
-                        // Info button
-                        IconButton(
-                          icon: const Icon(
-                            Icons.info_outline,
-                            color: Colors.white,
-                          ),
-                          onPressed:
-                              () => _showProfileDetails(context, profile),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on,
-                          color: Colors.white70,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          profile.location,
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildChip(profile.roomType, Icons.hotel),
-                        _buildChip(profile.budget, Icons.attach_money),
-                      ],
-                    ),
-                  ],
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildChip(String text, IconData icon) {
+  // Simple tag chip for displaying basic info
+  Widget _buildTagChip(String? text) {
+    if (text == null || text.isEmpty) return const SizedBox.shrink();
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: AppTheme.primaryPurple.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryPurple.withOpacity(0.5)),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white, fontSize: 12),
+      ),
+    );
+  }
+
+  // Interest chip with different styling
+  Widget _buildInterestChip(String interest) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.lightPurple.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppTheme.lightPurple.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        interest,
+        style: TextStyle(color: AppTheme.lightPurple, fontSize: 12),
       ),
     );
   }

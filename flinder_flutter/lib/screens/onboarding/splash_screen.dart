@@ -72,16 +72,24 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (authProvider.isAuthenticated) {
       try {
-        // Check if profile is completed
-        final isProfileCompleted =
-            await UserProfileService.isProfileCompleted();
+        // Check if profile is completed - first check auth provider (which handles hot reloads)
+        final isProfileCompleted = authProvider.user?.profileCompleted ?? false;
 
         if (isProfileCompleted) {
           // Profile is completed, go to main navigation screen
           AppRouter.navigateReplacement(context, AppRouter.mainRoute);
         } else {
-          // Profile is not completed, redirect to profile completion
-          AppRouter.navigateToProfileCreation(context);
+          // Double-check with the service (to ensure consistent behavior)
+          final serviceProfileCompleted =
+              await UserProfileService.isProfileCompleted();
+
+          if (serviceProfileCompleted) {
+            // Profile is completed according to the service, go to main navigation screen
+            AppRouter.navigateReplacement(context, AppRouter.mainRoute);
+          } else {
+            // Profile is not completed, redirect to profile completion
+            AppRouter.navigateToProfileCreation(context);
+          }
         }
       } catch (e) {
         // Handle any errors during profile check

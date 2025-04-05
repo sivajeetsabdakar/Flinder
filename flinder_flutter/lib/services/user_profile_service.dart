@@ -73,6 +73,7 @@ class UserProfileService {
     required RangeValues ageRange,
     required double maxDistance,
     required bool showMeToOthers,
+    List<String>? interests,
   }) async {
     try {
       print('$_tag - Saving user preferences');
@@ -113,6 +114,7 @@ class UserProfileService {
           "pets": "comfortable_with_pets",
           "cleaningHabits": _formatCleaningHabits(cleaningHabits),
           "guestPolicy": "occasional_guests",
+          "interests": interests ?? [],
           "interestWeights": {
             "music": 5,
             "gaming": 4,

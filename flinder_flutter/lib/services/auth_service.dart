@@ -312,4 +312,25 @@ class AuthService {
   static int min(int a, int b) {
     return a < b ? a : b;
   }
+
+  // Get profile completion status from storage
+  static Future<bool> getProfileCompletionStatus() async {
+    try {
+      // Try to get from shared preferences first (faster)
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('user');
+
+      if (userJson != null) {
+        final userData = jsonDecode(userJson);
+        return userData['isProfileCompleted'] ?? false;
+      }
+
+      // Fallback to current user in memory
+      final user = await getCurrentUser();
+      return user?.isProfileCompleted ?? false;
+    } catch (e) {
+      print('AuthService: Error getting profile completion status: $e');
+      return false;
+    }
+  }
 }

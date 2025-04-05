@@ -16,6 +16,7 @@ import '../screens/discovery/find_screen.dart';
 import '../screens/discovery/liked_you_screen.dart';
 import '../screens/chat/chat_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
+import '../screens/discovery/flat_detail_screen.dart';
 import '../models/user_profile.dart';
 
 class AppRouter {
@@ -34,8 +35,21 @@ class AppRouter {
   static const String matchesRoute = '/matches';
   static const String profileCompletionRoute = '/profile-completion';
   static const String editProfileRoute = '/edit-profile';
+  static const String flatDetailRoute = '/flat-detail';
+
+  // Tab indices
+  static const int profileTab = 0;
+  static const int discoverTab = 1;
+  static const int findTab = 2;
+  static const int likedYouTab = 3;
+  static const int chatTab = 4;
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
+    // Handle the root route by redirecting to the main route
+    if (settings.name == '/') {
+      return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
+    }
+
     switch (settings.name) {
       case splashRoute:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
@@ -46,7 +60,14 @@ class AppRouter {
       case forgotPasswordRoute:
         return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
       case homeRoute:
-        return MaterialPageRoute(builder: (_) => const HomeScreen());
+        // Check if we're passing a specific tab to navigate to
+        final args = settings.arguments;
+        if (args != null && args is int) {
+          return MaterialPageRoute(
+            builder: (_) => MainNavigationScreen(initialTab: args),
+          );
+        }
+        return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
       case mainRoute:
         return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
       case profileScreenRoute:
@@ -60,9 +81,9 @@ class AppRouter {
       case chatRoute:
         return MaterialPageRoute(builder: (_) => const ChatScreen());
       case profileDetailRoute:
-        final profile = settings.arguments as UserProfile;
+        final userProfile = settings.arguments as UserProfile;
         return MaterialPageRoute(
-          builder: (_) => ProfileDetailScreen(profile: profile),
+          builder: (_) => ProfileDetailScreen(profile: userProfile),
         );
       case matchesRoute:
         return MaterialPageRoute(builder: (_) => const MatchesScreen());
@@ -72,6 +93,11 @@ class AppRouter {
         );
       case editProfileRoute:
         return MaterialPageRoute(builder: (_) => const EditProfileScreen());
+      case flatDetailRoute:
+        final flatId = settings.arguments as String;
+        return MaterialPageRoute(
+          builder: (_) => FlatDetailScreen(flatId: flatId),
+        );
       // Other routes will be added here as they are implemented
       default:
         return MaterialPageRoute(
@@ -139,5 +165,19 @@ class AppRouter {
     Object? arguments,
   }) {
     Navigator.pushReplacementNamed(context, routeName, arguments: arguments);
+  }
+
+  // Navigation helper for flat details
+  static void navigateToFlatDetail(BuildContext context, String flatId) {
+    Navigator.pushNamed(context, flatDetailRoute, arguments: flatId);
+  }
+
+  static void navigateToLikedYouTab(BuildContext context) {
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      homeRoute,
+      (Route<dynamic> route) => false,
+      arguments: likedYouTab,
+    );
   }
 }

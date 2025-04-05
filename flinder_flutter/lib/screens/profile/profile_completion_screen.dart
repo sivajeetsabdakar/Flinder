@@ -9,6 +9,8 @@ import '../../theme/app_theme.dart';
 import '../../routes/app_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/user_profile_service.dart';
+import './interests_selection_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileCompletionScreen extends StatefulWidget {
   const ProfileCompletionScreen({Key? key}) : super(key: key);
@@ -55,6 +57,16 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   RangeValues _ageRange = const RangeValues(18, 35);
   double _maxDistance = 15;
   bool _showMeToOthers = true;
+
+  // User interests
+  List<String> _selectedInterests = [];
+
+  // Method to update selected interests
+  void _updateSelectedInterests(List<String> interests) {
+    setState(() {
+      _selectedInterests = interests;
+    });
+  }
 
   @override
   void dispose() {
@@ -106,6 +118,9 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         return _nonCriticalFormKey.currentState?.validate() ?? false;
       case 2:
         return _discoveryFormKey.currentState?.validate() ?? false;
+      case 3:
+        // Interests step - validate there's at least one selection
+        return _selectedInterests.isNotEmpty;
       default:
         return false;
     }
@@ -113,15 +128,19 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
 
   // Handle continue button press
   void _handleContinue() {
-    if (_validateCurrentStep()) {
-      setState(() {
-        if (_currentStep < 2) {
-          _currentStep++;
-        } else {
-          _completeProfile();
-        }
-      });
+    // Validate the current step's form
+    if (!_validateCurrentStep()) {
+      return;
     }
+
+    setState(() {
+      if (_currentStep < 3) {
+        _currentStep++;
+      } else {
+        // Last step, complete profile
+        _completeProfile();
+      }
+    });
   }
 
   // Handle cancel button press
@@ -133,7 +152,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     });
   }
 
-  // Complete profile and navigate to matches screen
+  // Complete profile and navigate to main screen
   Future<void> _completeProfile() async {
     // Validate the form first
     if (!_validateCurrentStep()) {
@@ -145,62 +164,20 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     });
 
     try {
-      print('ProfileCompletionScreen - Starting profile completion process');
+      print('ProfileCompletionScreen - Completing profile');
 
-      // Check if user is logged in
+      // Update profile completion status locally
       final currentUser = await AuthService.getCurrentUser();
-      if (currentUser == null) {
-        print(
-          'ProfileCompletionScreen - No logged in user found, attempting to use auth status',
-        );
+      if (currentUser != null) {
+        currentUser.isProfileCompleted = true;
 
-        // Check if user is authenticated even if the model is not found
-        final isAuth = await AuthService.isAuthenticated();
-        if (!isAuth) {
-          throw Exception('You need to be logged in to complete your profile');
-        }
-      } else {
-        print('ProfileCompletionScreen - User found: ${currentUser.email}');
-      }
-
-      // Validate that necessary fields are entered
-      if (_cityController.text.isEmpty) {
-        throw Exception('Please enter a city');
-      }
-
-      if (_ageController.text.isEmpty) {
-        throw Exception('Please enter your age');
-      }
-
-      final age = int.tryParse(_ageController.text);
-      if (age == null || age < 18 || age > 100) {
-        throw Exception('Please enter a valid age between 18 and 100');
+        // Save to shared preferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user', jsonEncode(currentUser.toJson()));
       }
 
       print(
-        'ProfileCompletionScreen - All fields validated, saving preferences',
-      );
-
-      // Save preferences to Supabase
-      final success = await UserProfileService.savePreferences(
-        city: _cityController.text,
-        roomType: _selectedRoomType,
-        budgetRange: _selectedBudgetRange,
-        schedule: _selectedSchedule,
-        noiseLevel: _selectedNoiseLevel,
-        cleaningHabits: _selectedCleaningHabits,
-        age: age,
-        ageRange: _ageRange,
-        maxDistance: _maxDistance,
-        showMeToOthers: _showMeToOthers,
-      );
-
-      if (!success) {
-        throw Exception('Failed to save preferences');
-      }
-
-      print(
-        'ProfileCompletionScreen - Preferences saved successfully, navigating to main screen',
+        'ProfileCompletionScreen - Profile marked as completed, navigating to main screen',
       );
 
       if (mounted) {
@@ -265,176 +242,22 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                 children: [
                   // Header
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
+                    padding: const EdgeInsets.fromLTRB(20, 40, 20, 8),
                     child: Text(
                       'Complete Your Profile',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 26,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                   ),
 
-                  // Stepper with 3 steps
-                  Expanded(
-                    child: Theme(
-                      data: Theme.of(context).copyWith(
-                        colorScheme: Theme.of(context).colorScheme.copyWith(
-                          primary: AppTheme.primaryPurple,
-                          background: AppTheme.darkGrey,
-                        ),
-                      ),
-                      child: Stepper(
-                        type: StepperType.horizontal,
-                        physics: const ScrollPhysics(),
-                        currentStep: _currentStep,
-                        controlsBuilder: (context, details) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 24.0),
-                            child: Row(
-                              children: [
-                                if (_currentStep > 0)
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: details.onStepCancel,
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                        side: BorderSide(
-                                          color: AppTheme.primaryPurple,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'Back',
-                                        style: TextStyle(
-                                          color: AppTheme.primaryPurple,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                if (_currentStep > 0) const SizedBox(width: 16),
-                                Expanded(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      gradient: AppTheme.purpleGradient,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.primaryPurple
-                                              .withOpacity(0.4),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ElevatedButton(
-                                      onPressed:
-                                          _isLoading
-                                              ? null
-                                              : details.onStepContinue,
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                        ),
-                                      ),
-                                      child:
-                                          _isLoading
-                                              ? const SizedBox(
-                                                height: 24,
-                                                width: 24,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      color: Colors.white,
-                                                      strokeWidth: 2,
-                                                    ),
-                                              )
-                                              : Text(
-                                                _currentStep == 2
-                                                    ? 'Complete'
-                                                    : 'Continue',
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                        onStepContinue: _handleContinue,
-                        onStepCancel: _handleCancel,
-                        steps: <Step>[
-                          // Step 1: Critical Preferences (Location & Budget)
-                          Step(
-                            title: const Text(
-                              'Basics',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                            ),
-                            isActive: _currentStep >= 0,
-                            state:
-                                _currentStep > 0
-                                    ? StepState.complete
-                                    : StepState.indexed,
-                            content: _buildCriticalStep(),
-                          ),
-                          // Step 2: Non-Critical Preferences (Lifestyle)
-                          Step(
-                            title: const Text(
-                              'Lifestyle',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                            ),
-                            isActive: _currentStep >= 1,
-                            state:
-                                _currentStep > 1
-                                    ? StepState.complete
-                                    : StepState.indexed,
-                            content: _buildNonCriticalStep(),
-                          ),
-                          // Step 3: Discovery Preferences (Matching Settings)
-                          Step(
-                            title: const Text(
-                              'Matching',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                            ),
-                            isActive: _currentStep >= 2,
-                            state:
-                                _currentStep > 2
-                                    ? StepState.complete
-                                    : StepState.indexed,
-                            content: _buildDiscoveryStep(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  // Custom step indicator
+                  _buildCustomStepIndicator(),
+
+                  // Content area with step content
+                  Expanded(child: _buildStepContent()),
                 ],
               ),
             ],
@@ -448,80 +271,79 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   Widget _buildCriticalStep() {
     return Form(
       key: _criticalFormKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Let us know about your location and budget preferences.',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 16,
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Let us know about your location and budget preferences.',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 16,
             ),
-            const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 24),
 
-            // City input
-            _buildSectionTitle('Where are you looking for a flatmate?'),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _cityController,
-              decoration: InputDecoration(
-                hintText: 'Enter city',
-                prefixIcon: const Icon(
-                  Icons.location_city,
-                  color: AppTheme.lightPurple,
-                ),
-                fillColor: AppTheme.darkGrey.withOpacity(0.7),
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: AppTheme.primaryPurple.withOpacity(0.3),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: AppTheme.primaryPurple,
-                    width: 2,
-                  ),
+          // City input
+          _buildSectionTitle('Where are you looking for a flatmate?'),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _cityController,
+            decoration: InputDecoration(
+              hintText: 'Enter city',
+              prefixIcon: const Icon(
+                Icons.location_city,
+                color: AppTheme.lightPurple,
+              ),
+              fillColor: AppTheme.darkGrey.withOpacity(0.7),
+              filled: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: AppTheme.primaryPurple.withOpacity(0.3),
                 ),
               ),
-              style: const TextStyle(color: Colors.white),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a city';
-                }
-                return null;
-              },
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: AppTheme.primaryPurple,
+                  width: 2,
+                ),
+              ),
             ),
-            const SizedBox(height: 24),
+            style: const TextStyle(color: Colors.white),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter a city';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 24),
 
-            // Room type selection
-            _buildSectionTitle('What type of room are you looking for?'),
-            const SizedBox(height: 12),
-            _buildChoiceContainer(_roomTypes, _selectedRoomType, (value) {
-              setState(() {
-                _selectedRoomType = value;
-              });
-            }),
-            const SizedBox(height: 24),
+          // Room type selection
+          _buildSectionTitle('What type of room are you looking for?'),
+          const SizedBox(height: 12),
+          _buildChoiceContainer(_roomTypes, _selectedRoomType, (value) {
+            setState(() {
+              _selectedRoomType = value;
+            });
+          }),
+          const SizedBox(height: 24),
 
-            // Budget range selection
-            _buildSectionTitle('What\'s your budget range?'),
-            const SizedBox(height: 12),
-            _buildChoiceContainer(_budgetRanges, _selectedBudgetRange, (value) {
-              setState(() {
-                _selectedBudgetRange = value;
-              });
-            }),
-          ],
-        ),
+          // Budget range selection
+          _buildSectionTitle('What\'s your budget range?'),
+          const SizedBox(height: 12),
+          _buildChoiceContainer(_budgetRanges, _selectedBudgetRange, (value) {
+            setState(() {
+              _selectedBudgetRange = value;
+            });
+          }),
+          const SizedBox(height: 40),
+        ],
       ),
     );
   }
@@ -530,94 +352,93 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   Widget _buildNonCriticalStep() {
     return Form(
       key: _nonCriticalFormKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Tell us about your lifestyle preferences to find compatible flatmates.',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 16,
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tell us about your lifestyle preferences to find compatible flatmates.',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 16,
             ),
-            const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 24),
 
-            // Schedule preference
-            _buildSectionTitle('What\'s your daily schedule?'),
-            const SizedBox(height: 12),
-            _buildChoiceContainer(_schedules, _selectedSchedule, (value) {
-              setState(() {
-                _selectedSchedule = value;
-              });
-            }),
-            const SizedBox(height: 24),
+          // Schedule preference
+          _buildSectionTitle('What\'s your daily schedule?'),
+          const SizedBox(height: 12),
+          _buildChoiceContainer(_schedules, _selectedSchedule, (value) {
+            setState(() {
+              _selectedSchedule = value;
+            });
+          }),
+          const SizedBox(height: 24),
 
-            // Noise level preference
-            _buildSectionTitle('What noise level do you prefer?'),
-            const SizedBox(height: 12),
-            _buildChoiceContainer(_noiseLevels, _selectedNoiseLevel, (value) {
-              setState(() {
-                _selectedNoiseLevel = value;
-              });
-            }),
-            const SizedBox(height: 24),
+          // Noise level preference
+          _buildSectionTitle('What noise level do you prefer?'),
+          const SizedBox(height: 12),
+          _buildChoiceContainer(_noiseLevels, _selectedNoiseLevel, (value) {
+            setState(() {
+              _selectedNoiseLevel = value;
+            });
+          }),
+          const SizedBox(height: 24),
 
-            // Cleaning habits
-            _buildSectionTitle('How would you describe your cleaning habits?'),
-            const SizedBox(height: 12),
-            _buildChoiceContainer(_cleaningHabits, _selectedCleaningHabits, (
-              value,
-            ) {
-              setState(() {
-                _selectedCleaningHabits = value;
-              });
-            }),
-            const SizedBox(height: 24),
+          // Cleaning habits
+          _buildSectionTitle('How would you describe your cleaning habits?'),
+          const SizedBox(height: 12),
+          _buildChoiceContainer(_cleaningHabits, _selectedCleaningHabits, (
+            value,
+          ) {
+            setState(() {
+              _selectedCleaningHabits = value;
+            });
+          }),
+          const SizedBox(height: 24),
 
-            // Age input
-            _buildSectionTitle('How old are you?'),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _ageController,
-              decoration: InputDecoration(
-                hintText: 'Enter your age',
-                prefixIcon: const Icon(Icons.cake, color: AppTheme.lightPurple),
-                fillColor: AppTheme.darkGrey.withOpacity(0.7),
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: AppTheme.primaryPurple.withOpacity(0.3),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: AppTheme.primaryPurple,
-                    width: 2,
-                  ),
+          // Age input
+          _buildSectionTitle('How old are you?'),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _ageController,
+            decoration: InputDecoration(
+              hintText: 'Enter your age',
+              prefixIcon: const Icon(Icons.cake, color: AppTheme.lightPurple),
+              fillColor: AppTheme.darkGrey.withOpacity(0.7),
+              filled: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: AppTheme.primaryPurple.withOpacity(0.3),
                 ),
               ),
-              style: const TextStyle(color: Colors.white),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your age';
-                }
-                final age = int.tryParse(value);
-                if (age == null || age < 18 || age > 100) {
-                  return 'Please enter a valid age between 18 and 100';
-                }
-                return null;
-              },
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: AppTheme.primaryPurple,
+                  width: 2,
+                ),
+              ),
             ),
-          ],
-        ),
+            style: const TextStyle(color: Colors.white),
+            keyboardType: TextInputType.number,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your age';
+              }
+              final age = int.tryParse(value);
+              if (age == null || age < 18 || age > 100) {
+                return 'Please enter a valid age between 18 and 100';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
@@ -626,221 +447,357 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   Widget _buildDiscoveryStep() {
     return Form(
       key: _discoveryFormKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Configure your discovery settings for optimal flatmate matching.',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 16,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Configure your discovery settings for optimal flatmate matching.',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Age range preference
+          _buildSectionTitle('Preferred age range for potential flatmates'),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.darkGrey.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppTheme.primaryPurple.withOpacity(0.2),
+                width: 1,
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Age range preference
-            _buildSectionTitle('Preferred age range for potential flatmates'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.darkGrey.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.primaryPurple.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryPurple.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${_ageRange.start.toInt()}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
                       ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'to',
-                          style: TextStyle(color: Colors.white70),
-                        ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryPurple.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryPurple.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${_ageRange.end.toInt()}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  SliderTheme(
-                    data: SliderThemeData(
-                      activeTrackColor: AppTheme.primaryPurple,
-                      inactiveTrackColor: AppTheme.primaryPurple.withOpacity(
-                        0.2,
-                      ),
-                      thumbColor: AppTheme.lightPurple,
-                      overlayColor: AppTheme.primaryPurple.withOpacity(0.1),
-                      valueIndicatorColor: AppTheme.primaryPurple,
-                      valueIndicatorTextStyle: const TextStyle(
-                        color: Colors.white,
-                      ),
-                    ),
-                    child: RangeSlider(
-                      values: _ageRange,
-                      min: 18,
-                      max: 65,
-                      divisions: 47,
-                      labels: RangeLabels(
+                      child: Text(
                         '${_ageRange.start.toInt()}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        'to',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryPurple.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
                         '${_ageRange.end.toInt()}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
-                      onChanged: (values) {
-                        setState(() {
-                          _ageRange = values;
-                        });
-                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                SliderTheme(
+                  data: SliderThemeData(
+                    activeTrackColor: AppTheme.primaryPurple,
+                    inactiveTrackColor: AppTheme.primaryPurple.withOpacity(0.2),
+                    thumbColor: AppTheme.lightPurple,
+                    overlayColor: AppTheme.primaryPurple.withOpacity(0.1),
+                    valueIndicatorColor: AppTheme.primaryPurple,
+                    valueIndicatorTextStyle: const TextStyle(
+                      color: Colors.white,
                     ),
                   ),
-                ],
-              ),
+                  child: RangeSlider(
+                    values: _ageRange,
+                    min: 18,
+                    max: 65,
+                    divisions: 47,
+                    labels: RangeLabels(
+                      '${_ageRange.start.toInt()}',
+                      '${_ageRange.end.toInt()}',
+                    ),
+                    onChanged: (values) {
+                      setState(() {
+                        _ageRange = values;
+                      });
+                    },
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 20),
 
-            // Maximum distance
-            _buildSectionTitle('Maximum distance (km)'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.darkGrey.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.primaryPurple.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryPurple.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${_maxDistance.toInt()} km',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SliderTheme(
-                    data: SliderThemeData(
-                      activeTrackColor: AppTheme.primaryPurple,
-                      inactiveTrackColor: AppTheme.primaryPurple.withOpacity(
-                        0.2,
-                      ),
-                      thumbColor: AppTheme.lightPurple,
-                      overlayColor: AppTheme.primaryPurple.withOpacity(0.1),
-                      valueIndicatorColor: AppTheme.primaryPurple,
-                      valueIndicatorTextStyle: const TextStyle(
-                        color: Colors.white,
-                      ),
-                    ),
-                    child: Slider(
-                      value: _maxDistance,
-                      min: 1,
-                      max: 50,
-                      divisions: 49,
-                      label: '${_maxDistance.toInt()} km',
-                      onChanged: (value) {
-                        setState(() {
-                          _maxDistance = value;
-                        });
-                      },
-                    ),
-                  ),
-                ],
+          // Maximum distance
+          _buildSectionTitle('Maximum distance (km)'),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.darkGrey.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppTheme.primaryPurple.withOpacity(0.2),
+                width: 1,
               ),
             ),
-            const SizedBox(height: 24),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryPurple.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${_maxDistance.toInt()} km',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SliderTheme(
+                  data: SliderThemeData(
+                    activeTrackColor: AppTheme.primaryPurple,
+                    inactiveTrackColor: AppTheme.primaryPurple.withOpacity(0.2),
+                    thumbColor: AppTheme.lightPurple,
+                    overlayColor: AppTheme.primaryPurple.withOpacity(0.1),
+                    valueIndicatorColor: AppTheme.primaryPurple,
+                    valueIndicatorTextStyle: const TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                  child: Slider(
+                    value: _maxDistance,
+                    min: 1,
+                    max: 50,
+                    divisions: 49,
+                    label: '${_maxDistance.toInt()} km',
+                    onChanged: (value) {
+                      setState(() {
+                        _maxDistance = value;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
 
-            // Show me to others switch
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.darkGrey.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.primaryPurple.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: SwitchListTile(
-                title: const Text(
-                  'Show Me to Others',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                subtitle: Text(
-                  'Turn off to hide your profile from others but still see potential matches.',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 14,
-                  ),
-                ),
-                value: _showMeToOthers,
-                activeColor: AppTheme.primaryPurple,
-                onChanged: (value) {
-                  setState(() {
-                    _showMeToOthers = value;
-                  });
-                },
+          // Show me to others switch
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.darkGrey.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppTheme.primaryPurple.withOpacity(0.2),
+                width: 1,
               ),
             ),
-          ],
-        ),
+            child: SwitchListTile(
+              title: const Text(
+                'Show Me to Others',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              subtitle: Text(
+                'Turn off to hide your profile from others but still see potential matches.',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 13,
+                ),
+              ),
+              value: _showMeToOthers,
+              activeColor: AppTheme.primaryPurple,
+              onChanged: (value) {
+                setState(() {
+                  _showMeToOthers = value;
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
+    );
+  }
+
+  // Step 4: Interests Selection
+  Widget _buildInterestsStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Select your interests to match with like-minded flatmates.',
+          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 16),
+        ),
+        const SizedBox(height: 24),
+
+        // Card to show selected interests or prompt to select
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.darkGrey.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppTheme.primaryPurple.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Your Interests',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextButton.icon(
+                    icon: Icon(
+                      Icons.edit,
+                      color: AppTheme.primaryPurple,
+                      size: 16,
+                    ),
+                    label: Text(
+                      'Edit',
+                      style: TextStyle(
+                        color: AppTheme.primaryPurple,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onPressed: () async {
+                      // Navigate to interests selection screen
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => InterestsSelectionScreen(
+                                initialInterests: _selectedInterests,
+                                maxSelections: 10,
+                                isOnboarding: true,
+                              ),
+                        ),
+                      );
+
+                      // Update interests if returned
+                      if (result != null && result is List<String>) {
+                        _updateSelectedInterests(result);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Display selected interests or prompt
+              _selectedInterests.isEmpty
+                  ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.interests,
+                            size: 48,
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Tap "Edit" to select your interests',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  : Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children:
+                        _selectedInterests
+                            .map(
+                              (interest) => Chip(
+                                label: Text(
+                                  interest,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                backgroundColor: AppTheme.primaryPurple
+                                    .withOpacity(0.7),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                  ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Help text
+        Text(
+          'Your interests help us match you with compatible flatmates. You\'ll be able to update them later.',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
     );
   }
 
@@ -862,8 +819,12 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     String selectedOption,
     Function(String) onSelected,
   ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final optionWidth =
+        screenWidth < 360 ? (screenWidth - 76) / 2 : screenWidth * 0.4;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.darkGrey.withOpacity(0.7),
         borderRadius: BorderRadius.circular(16),
@@ -873,15 +834,16 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         ),
       ),
       child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
         children:
             options.map((option) {
               final isSelected = selectedOption == option;
               return InkWell(
                 onTap: () => onSelected(option),
                 child: Container(
-                  width: MediaQuery.of(context).size.width * 0.4,
+                  width: optionWidth,
                   height: 50,
                   decoration: BoxDecoration(
                     color:
@@ -917,7 +879,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                 : Colors.white.withOpacity(0.8),
                         fontWeight:
                             isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 15,
+                        fontSize: 14,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -926,6 +888,215 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
               );
             }).toList(),
       ),
+    );
+  }
+
+  // Helper to build step indicators
+  Widget _buildStepIndicator(String label, int index) {
+    final bool isActive = _currentStep >= index;
+    final bool isCurrent = _currentStep == index;
+
+    return GestureDetector(
+      onTap: () {
+        // Only allow moving to previous or current steps
+        if (_currentStep >= index) {
+          setState(() {
+            _currentStep = index;
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
+                fontSize: 13,
+                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color:
+                    isCurrent
+                        ? AppTheme.primaryPurple
+                        : (isActive
+                            ? AppTheme.lightPurple.withOpacity(0.5)
+                            : Colors.white.withOpacity(0.3)),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color:
+                      isActive
+                          ? AppTheme.primaryPurple
+                          : Colors.white.withOpacity(0.3),
+                  width: 1.5,
+                ),
+              ),
+              child:
+                  isCurrent
+                      ? const Center(
+                        child: Icon(Icons.circle, size: 6, color: Colors.white),
+                      )
+                      : isActive
+                      ? const Center(
+                        child: Icon(Icons.check, size: 10, color: Colors.white),
+                      )
+                      : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper to build step divider
+  Widget _buildStepDivider() {
+    return Container(
+      width: 30,
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      color: Colors.white.withOpacity(0.3),
+    );
+  }
+
+  // Custom step indicator
+  Container _buildCustomStepIndicator() {
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          mainAxisAlignment:
+              MediaQuery.of(context).size.width > 360
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
+          children: [
+            _buildStepIndicator('Basics', 0),
+            _buildStepDivider(),
+            _buildStepIndicator('Lifestyle', 1),
+            _buildStepDivider(),
+            _buildStepIndicator('Matching', 2),
+            _buildStepDivider(),
+            _buildStepIndicator('Interests', 3),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper to build step content
+  Widget _buildStepContent() {
+    Widget content;
+
+    switch (_currentStep) {
+      case 0:
+        content = _buildCriticalStep();
+        break;
+      case 1:
+        content = _buildNonCriticalStep();
+        break;
+      case 2:
+        content = _buildDiscoveryStep();
+        break;
+      case 3:
+        content = _buildInterestsStep();
+        break;
+      default:
+        content = Container();
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: content,
+            ),
+          ),
+        ),
+
+        // Navigation buttons
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: Row(
+            children: [
+              if (_currentStep > 0)
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _handleCancel,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: AppTheme.primaryPurple),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'Back',
+                      style: TextStyle(color: AppTheme.primaryPurple),
+                    ),
+                  ),
+                ),
+              if (_currentStep > 0) const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: AppTheme.purpleGradient,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryPurple.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleContinue,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child:
+                        _isLoading
+                            ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                            : Text(
+                              _currentStep == 3 ? 'Complete' : 'Continue',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

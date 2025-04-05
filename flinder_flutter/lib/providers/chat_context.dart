@@ -765,4 +765,344 @@ class ChatContext extends ChangeNotifier {
   void removeMessageAddedCallback() {
     _messageAddedCallback = null;
   }
+
+  // Create a new group chat and add members
+  Future<String?> createGroupChat(
+    String groupName,
+    List<String> memberIds,
+  ) async {
+    try {
+      final client = _getSupabaseClient();
+      final userId = await _getCurrentUserId();
+
+      if (client == null || userId == null) {
+        print(
+          'ChatContext: Cannot create group chat - client or userId is null',
+        );
+        return null;
+      }
+
+      print(
+        'ChatContext: Creating group chat "$groupName" with ${memberIds.length} members',
+      );
+
+      // 1. Create a new chat entry
+      final chatInsertRes =
+          await client
+              .from('chats')
+              .insert({'name': groupName, 'is_group': true})
+              .select('id')
+              .single();
+
+      if (chatInsertRes == null || chatInsertRes['id'] == null) {
+        throw Exception('Failed to create chat');
+      }
+
+      final chatId = chatInsertRes['id'] as String;
+      print('ChatContext: Created chat with ID: $chatId');
+
+      // 2. Add all the members to the chat
+      final membersToInsert =
+          memberIds
+              .map((userId) => {'chat_id': chatId, 'user_id': userId})
+              .toList();
+
+      await client.from('chat_members').insert(membersToInsert);
+      print('ChatContext: Added ${memberIds.length} members to chat $chatId');
+
+      // 3. Add a system message about group creation
+      await client.from('messages').insert({
+        'chat_id': chatId,
+        'sender_id': userId,
+        'content': 'Group "$groupName" created',
+        'is_system_message': true,
+      });
+
+      // 4. Reload threads to include the new group
+      await loadChatThreads();
+
+      return chatId;
+    } catch (e) {
+      print('ChatContext: Error creating group chat: $e');
+      return null;
+    }
+  }
+
+  // Create a chat between two users when they match and send the first message
+  Future<String?> createMatchChat(
+    String otherUserId,
+    String otherUserName,
+  ) async {
+    try {
+      final client = _getSupabaseClient();
+      final currentUserId = await _getCurrentUserId();
+
+      if (client == null || currentUserId == null) {
+        print(
+          'ChatContext: Cannot create match chat - client or userId is null',
+        );
+        return null;
+      }
+
+      print(
+        'ChatContext: Creating match chat between $currentUserId and $otherUserId',
+      );
+
+      // 1. Create a new chat entry (not a group)
+      final chatInsertRes =
+          await client
+              .from('chats')
+              .insert({
+                'is_group': false,
+                'created_at': DateTime.now().toIso8601String(),
+              })
+              .select('id')
+              .single();
+
+      if (chatInsertRes == null || chatInsertRes['id'] == null) {
+        throw Exception('Failed to create chat');
+      }
+
+      final chatId = chatInsertRes['id'] as String;
+      print('ChatContext: Created match chat with ID: $chatId');
+
+      // 2. Add both users to the chat
+      final membersToInsert = [
+        {'chat_id': chatId, 'user_id': currentUserId},
+        {'chat_id': chatId, 'user_id': otherUserId},
+      ];
+
+      await client.from('chat_members').insert(membersToInsert);
+      print('ChatContext: Added both users to chat $chatId');
+
+      // 3. Send welcome message from current user
+      final welcomeMessage = "Hello, it's great connecting with you!";
+      await client.from('messages').insert({
+        'chat_id': chatId,
+        'sender_id': currentUserId,
+        'content': welcomeMessage,
+        'sent_at': DateTime.now().toIso8601String(),
+      });
+      print('ChatContext: Sent welcome message to chat $chatId');
+
+      // 4. Reload threads to include the new chat
+      await loadChatThreads();
+
+      return chatId;
+    } catch (e) {
+      print('ChatContext: Error creating match chat: $e');
+      return null;
+    }
+  }
+
+  // Get a list of users who have active chats with the current user
+  Future<List<dynamic>> getUsersWithActiveChats() async {
+    final client = _getSupabaseClient();
+    final userId = await _getCurrentUserId();
+
+    if (client == null || userId == null) {
+      return [];
+    }
+
+    try {
+      // Get all chats the current user is a member of
+      final chatMembersResponse = await client
+          .from('chat_members')
+          .select('chat_id')
+          .eq('user_id', userId);
+
+      if (chatMembersResponse == null ||
+          (chatMembersResponse as List).isEmpty) {
+        return [];
+      }
+
+      // Extract chat IDs
+      final chatIds =
+          (chatMembersResponse as List)
+              .map((item) => item['chat_id'] as String)
+              .toList();
+
+      if (chatIds.isEmpty) {
+        return [];
+      }
+
+      // Get all members of these chats excluding the current user
+      final List<dynamic> otherMembers = [];
+
+      // Fetch members for each chat separately since we can't use in_
+      for (final chatId in chatIds) {
+        final chatMembersResult = await client
+            .from('chat_members')
+            .select(
+              'user_id, users!inner(id, email, name, profile_picture_url)',
+            )
+            .eq('chat_id', chatId)
+            .neq('user_id', userId);
+
+        if (chatMembersResult != null &&
+            (chatMembersResult as List).isNotEmpty) {
+          otherMembers.addAll(chatMembersResult);
+        }
+      }
+
+      if (otherMembers.isEmpty) {
+        return [];
+      }
+
+      // Extract unique users
+      final Set<String> uniqueUserIds = {};
+      final List<dynamic> uniqueUsers = [];
+
+      for (var member in otherMembers) {
+        final userData = member['users'];
+        final userId = userData['id'] as String;
+
+        if (!uniqueUserIds.contains(userId)) {
+          uniqueUserIds.add(userId);
+          uniqueUsers.add({
+            'id': userId,
+            'name': userData['name'] ?? 'Unknown User',
+            'email': userData['email'] ?? '',
+            'profilePic': userData['profile_picture_url'],
+          });
+        }
+      }
+
+      return uniqueUsers;
+    } catch (e) {
+      print('ChatContext: Error getting users with active chats: $e');
+      return [];
+    }
+  }
+
+  // Get user details by user ID for displaying in chat
+  Future<Map<String, dynamic>?> getUserDetailsById(String userId) async {
+    try {
+      final client = _getSupabaseClient();
+      if (client == null) {
+        print('ChatContext: Cannot get user details - client is null');
+        return null;
+      }
+
+      // Fetch user data from the users table
+      final response =
+          await client
+              .from('users')
+              .select('id, name, email, profile_picture_url')
+              .eq('id', userId)
+              .single();
+
+      if (response != null) {
+        print('ChatContext: Found user details for ID: $userId');
+        return response;
+      } else {
+        print('ChatContext: No user details found for ID: $userId');
+        return null;
+      }
+    } catch (e) {
+      print('ChatContext: Error fetching user details: $e');
+      return null;
+    }
+  }
+
+  // Get other user details from a one-on-one chat
+  Future<Map<String, dynamic>?> getOtherUserInChat(
+    String chatId,
+    String currentUserId,
+  ) async {
+    try {
+      print(
+        'ChatContext: Getting other user in chat $chatId for current user $currentUserId',
+      );
+
+      final client = _getSupabaseClient();
+      if (client == null) {
+        print('ChatContext: Cannot get chat members - client is null');
+        return null;
+      }
+
+      // First check if this is a 1:1 chat (not a group)
+      try {
+        final chatResponse =
+            await client
+                .from('chats')
+                .select('is_group')
+                .eq('id', chatId)
+                .single();
+
+        print('ChatContext: Chat data: $chatResponse');
+
+        if (chatResponse == null || chatResponse['is_group'] == true) {
+          print(
+            'ChatContext: Chat is a group or not found, cannot get other user',
+          );
+          return null;
+        }
+
+        // Get all members of this chat
+        final membersResponse = await client
+            .from('chat_members')
+            .select('user_id')
+            .eq('chat_id', chatId);
+
+        print('ChatContext: Chat members: $membersResponse');
+
+        if (membersResponse == null || (membersResponse as List).isEmpty) {
+          print('ChatContext: No members found for chat: $chatId');
+          return null;
+        }
+
+        // Find the member that is not the current user
+        String? otherUserId;
+        for (var member in membersResponse) {
+          final memberId = member['user_id'] as String;
+          print(
+            'ChatContext: Checking member: $memberId vs current: $currentUserId',
+          );
+
+          if (memberId != currentUserId) {
+            otherUserId = memberId;
+            print('ChatContext: Found other user: $otherUserId');
+            break;
+          }
+        }
+
+        if (otherUserId == null) {
+          print('ChatContext: Could not find other user in chat: $chatId');
+          return null;
+        }
+
+        // Get user details - try a direct query first
+        try {
+          final userResponse =
+              await client
+                  .from('users')
+                  .select('id, name, email, profile_picture_url')
+                  .eq('id', otherUserId)
+                  .maybeSingle();
+
+          print('ChatContext: Found user details: $userResponse');
+
+          if (userResponse != null) {
+            return userResponse;
+          }
+        } catch (userError) {
+          print(
+            'ChatContext: Error getting user details: $userError, trying fallback',
+          );
+        }
+
+        // Fallback to our helper method
+        final userDetails = await getUserDetailsById(otherUserId);
+        print('ChatContext: User details from fallback: $userDetails');
+        return userDetails;
+      } catch (chatError) {
+        print('ChatContext: Error getting chat details: $chatError');
+        return null;
+      }
+    } catch (e) {
+      print('ChatContext: Error getting other user in chat: $e');
+      return null;
+    }
+  }
 }
