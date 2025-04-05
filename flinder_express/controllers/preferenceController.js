@@ -24,21 +24,7 @@ const preferencesSchema = Joi.object({
     ).required(),
     leaseDuration: Joi.string().valid('short_term', 'long_term', 'flexible').required()
   }).required(),
-  nonCritical: Joi.object({
-    schedule: Joi.string().valid('early_riser', 'night_owl', 'flexible'),
-    noiseLevel: Joi.string().valid('silent', 'moderate', 'loud'),
-    cookingFrequency: Joi.string().valid('rarely', 'sometimes', 'daily'),
-    diet: Joi.string().valid('vegetarian', 'vegan', 'non_vegetarian', 'no_restrictions'),
-    smoking: Joi.string().valid('yes', 'no', 'occasionally'),
-    drinking: Joi.string().valid('yes', 'no', 'occasionally'),
-    pets: Joi.string().valid('has_pets', 'no_pets', 'comfortable_with_pets'),
-    cleaningHabits: Joi.string().valid('very_clean', 'average', 'messy'),
-    guestPolicy: Joi.string().valid('no_guests', 'occasional_guests', 'frequent_guests'),
-    interestWeights: Joi.object().pattern(
-      Joi.string(),
-      Joi.number().min(1).max(5)
-    )
-  }),
+  nonCritical: Joi.object(),
   discoverySettings: Joi.object({
     ageRange: Joi.object({
       min: Joi.number().min(18).required(),
@@ -46,7 +32,8 @@ const preferencesSchema = Joi.object({
     }),
     distance: Joi.number(),
     showMeToOthers: Joi.boolean()
-  })
+  }),
+  interests: Joi.object()
 });
 
 /**

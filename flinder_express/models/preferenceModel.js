@@ -20,7 +20,8 @@ const getPreferencesByUserId = async (userId) => {
       userId: preferences.user_id,
       critical: preferences.critical,
       nonCritical: preferences.non_critical,
-      discoverySettings: preferences.discovery_settings
+      discoverySettings: preferences.discovery_settings,
+      interests: preferences.interests
     };
     
     return { preferences: formattedPreferences, error: null };
@@ -54,7 +55,8 @@ const createOrUpdatePreferences = async (userId, preferencesData) => {
         ageRange: { min: 18, max: 99 },
         distance: 50,
         showMeToOthers: true
-      }
+      },
+      interests: preferencesData.interests || {}
     };
     
     let result;
@@ -82,7 +84,8 @@ const createOrUpdatePreferences = async (userId, preferencesData) => {
       userId,
       critical: dbPreferencesData.critical,
       nonCritical: dbPreferencesData.non_critical,
-      discoverySettings: dbPreferencesData.discovery_settings
+      discoverySettings: dbPreferencesData.discovery_settings,
+      interests: dbPreferencesData.interests
     };
     
     return { preferences: formattedPreferences, error: null };
