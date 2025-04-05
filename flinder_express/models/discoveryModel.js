@@ -1,5 +1,23 @@
 const supabase = require('../supabaseClient');
 const Joi = require('joi');
+const axios = require('axios');
+
+// Get ML server URL from environment variables
+const ML_SERVER_URL = process.env.ML_SERVER_URL || 'http://localhost:5000';
+
+/**
+ * Check if the ML server is available
+ * @returns {Promise<boolean>} True if server is available
+ */
+const checkMLServerHealth = async () => {
+  try {
+    const response = await axios.get(`${ML_SERVER_URL}/api/health`, { timeout: 5000 });
+    return response.status === 200;
+  } catch (error) {
+    console.error('ML server health check failed:', error.message);
+    return false;
+  }
+};
 
 /**
  * Get potential matches based on user preferences
@@ -10,20 +28,10 @@ const Joi = require('joi');
  */
 const getDiscoveryProfiles = async (userId, limit = 10, offset = 0) => {
   try {
-    // First get the user's profile and preferences
-    const { data: currentUserProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    
-    if (profileError) {
-      throw new Error('Failed to fetch user profile');
-    }
-
+    // First get the user's preferences to get the city filter
     const { data: userPreferences, error: prefError } = await supabase
       .from('preferences')
-      .select('*')
+      .select('critical')
       .eq('user_id', userId)
       .single();
     
@@ -31,10 +39,10 @@ const getDiscoveryProfiles = async (userId, limit = 10, offset = 0) => {
       throw new Error('Failed to fetch user preferences');
     }
 
-    if (!currentUserProfile || !userPreferences) {
-      throw new Error('User profile or preferences not found');
+    if (!userPreferences?.critical?.location?.city) {
+      throw new Error('User city preference not set');
     }
-    
+
     // Get users already swiped on
     const { data: swipedUsers, error: swipeError } = await supabase
       .from('swipes')
@@ -48,13 +56,25 @@ const getDiscoveryProfiles = async (userId, limit = 10, offset = 0) => {
     const swipedUserIds = swipedUsers?.map(swipe => swipe.target_user_id) || [];
     const excludeUserIds = [...swipedUserIds, userId];
 
-    // Build the query based on preferences
-    let query = supabase
+    // Get current user's info
+    const { data: currentUser, error: currentUserError } = await supabase
+      .from('users')
+      .select('id, user_id')
+      .eq('id', userId)
+      .single();
+    
+    if (currentUserError) {
+      throw new Error('Failed to fetch current user info');
+    }
+
+    // Get profiles filtered only by city
+    const { data: profiles, error: queryError, count } = await supabase
       .from('profiles')
       .select(`
         *,
         users!profiles_user_id_fkey (
           id,
+          user_id,
           name,
           gender,
           profile_pictures (
@@ -65,81 +85,167 @@ const getDiscoveryProfiles = async (userId, limit = 10, offset = 0) => {
           )
         )
       `)
+      .eq('location->>city', userPreferences.critical.location.city.toLowerCase())
       .not('user_id', 'in', `(${excludeUserIds.join(',')})`)
       .limit(limit)
       .range(offset, offset + limit - 1);
     
-    // Add critical filters if they exist
-    if (userPreferences.critical) {
-      const critical = userPreferences.critical;
-      
-      // Location filter - match city
-      if (critical.location?.city) {
-        query = query.eq('location->>city', critical.location.city);
-      }
-      
-      // Budget filter - find users with budgets that overlap
-      if (critical.budget) {
-        const { min: minBudget, max: maxBudget } = critical.budget;
-        query = query
-          .lte('budget->>min', maxBudget)  // Their minimum is less than or equal to our maximum
-          .gte('budget->>max', minBudget); // Their maximum is greater than or equal to our minimum
-      }
-      
-      // Room preference filter
-      if (critical.roomType && critical.roomType !== 'any') {
-        query = query.eq('room_preference', critical.roomType);
-      }
-      
-      // Gender preference filter
-      if (critical.genderPreference === 'same_gender') {
-        // First get users with the same gender
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('gender')
-          .eq('id', userId)
-          .single();
-          
-        if (userError) {
-          throw new Error('Failed to fetch user gender');
-        }
-
-        if (userData?.gender) {
-          query = query.eq('users.gender', userData.gender);
-        }
-      }
-    }
-    
-    // Execute the query
-    const { data: profiles, error: queryError, count } = await query;
-    
     if (queryError) {
       throw queryError;
     }
+
+    // Get ML matches if we have profiles
+    let mlMatches = [];
+    if (profiles.length > 0) {
+      try {
+        // Check ML server health first
+        const isMLServerHealthy = await checkMLServerHealth();
+        if (!isMLServerHealthy) {
+          console.warn('ML server is not available, using default match probabilities');
+          throw new Error('ML server is not available');
+        }
+
+        // Create array of numeric user_ids for ML matching
+        const filteredUserIds = profiles.map(profile => profile.users.user_id);
+        
+        // Prepare ML request payload
+        const mlRequestData = {
+          current_user_id: currentUser.user_id,
+          filtered_user_ids: filteredUserIds
+        };
+        
+        console.log('ML Request:', JSON.stringify(mlRequestData, null, 2));
+        
+        // Call ML service
+        const mlResponse = await axios.post(`${ML_SERVER_URL}/api/batch-match`, mlRequestData);
+        console.log('ML Response Status:', mlResponse.status);
+        console.log('ML Response Headers:', JSON.stringify(mlResponse.headers, null, 2));
+        console.log('ML Response Data:', JSON.stringify(mlResponse.data, null, 2));
+        
+        if (!mlResponse.data || !Array.isArray(mlResponse.data.matches)) {
+          console.error('Invalid ML response format:', mlResponse.data);
+          throw new Error('Invalid ML response format');
+        }
+        
+        mlMatches = mlResponse.data.matches || [];
+        console.log(`Processed ${mlMatches.length} ML matches`);
+        
+        // Verify match structure
+        if (mlMatches.length > 0) {
+          console.log('Sample match data:', JSON.stringify(mlMatches[0], null, 2));
+          
+          // Verify user_id mapping
+          const profileIds = profiles.map(p => p.users.user_id);
+          const matchIds = mlMatches.map(m => m.user_id);
+          const unmatchedIds = profileIds.filter(id => !matchIds.includes(id));
+          
+          if (unmatchedIds.length > 0) {
+            console.warn('Some profiles have no ML match:', unmatchedIds);
+          }
+        }
+      } catch (error) {
+        console.error('ML matching service error:', error.message);
+        if (error.response) {
+          console.error('ML error response:', {
+            status: error.response.status,
+            headers: error.response.headers,
+            data: error.response.data
+          });
+        } else if (error.request) {
+          console.error('ML error request sent but no response received');
+        }
+        
+        // If ML service fails, use default 50% match for all profiles
+        mlMatches = profiles.map(profile => ({
+          user_id: profile.users.user_id,
+          similarity: 0.5,
+          match_probability: 50.0,
+          interpretation: "Default match probability (ML service unavailable)"
+        }));
+      }
+    }
     
-    // Format the profiles for the API response
+    // Format the profiles for the API response with ML match data
     const formattedProfiles = profiles.map(profile => {
       const pictures = profile.users?.profile_pictures || [];
       const primaryPicture = pictures.find(pic => pic.is_primary) || pictures[0];
       
-      return {
-        userId: profile.user_id,
-        name: profile.users?.name,
-        bio: profile.bio,
-        generatedDescription: profile.generated_description,
-        interests: profile.interests || [],
-        profilePictures: pictures.map(pic => ({
-          id: pic.id,
-          url: pic.url,
-          isPrimary: pic.is_primary,
-          uploadedAt: pic.uploaded_at
-        })),
-        location: profile.location,
-        lifestyle: profile.lifestyle,
-        budget: profile.budget,
-        roomPreference: profile.room_preference,
-        moveInDate: profile.move_in_date
-      };
+      try {
+        // Find matching ML data for this profile using numeric user_id
+        const mlMatch = mlMatches.find(match => {
+          // If ML match user_id is not a number but profiles use numbers, try converting
+          if (typeof match.user_id !== 'number' && !isNaN(match.user_id)) {
+            return parseInt(match.user_id, 10) === profile.users.user_id;
+          }
+          return match.user_id === profile.users.user_id;
+        });
+        
+        if (!mlMatch) {
+          console.warn(`No ML match found for user_id ${profile.users.user_id}`);
+        }
+        
+        // Only use default values if no ML match was found
+        const matchData = mlMatch || {
+          similarity: 0.5,
+          match_probability: 50.0,
+          interpretation: "Default match probability"
+        };
+        
+        // Validate match data structure
+        if (mlMatch && (
+          typeof matchData.similarity === 'undefined' || 
+          typeof matchData.match_probability === 'undefined' || 
+          typeof matchData.interpretation === 'undefined'
+        )) {
+          console.warn('Incomplete ML match data for user_id:', profile.users.user_id, matchData);
+        }
+        
+        return {
+          userId: profile.users.id, // Return UUID for API
+          name: profile.users?.name,
+          bio: profile.bio,
+          generatedDescription: profile.generated_description,
+          interests: profile.interests || [],
+          profilePictures: pictures.map(pic => ({
+            id: pic.id,
+            url: pic.url,
+            isPrimary: pic.is_primary,
+            uploadedAt: pic.uploaded_at
+          })),
+          location: profile.location,
+          lifestyle: profile.lifestyle,
+          budget: profile.budget,
+          roomPreference: profile.room_preference,
+          moveInDate: profile.move_in_date,
+          similarity: matchData.similarity,
+          matchProbability: matchData.match_probability,
+          matchInterpretation: matchData.interpretation
+        };
+      } catch (err) {
+        console.error('Error processing ML match for profile:', profile.users.user_id, err);
+        // Return profile with default match data on error
+        return {
+          userId: profile.users.id,
+          name: profile.users?.name,
+          bio: profile.bio,
+          generatedDescription: profile.generated_description,
+          interests: profile.interests || [],
+          profilePictures: pictures.map(pic => ({
+            id: pic.id,
+            url: pic.url,
+            isPrimary: pic.is_primary,
+            uploadedAt: pic.uploaded_at
+          })),
+          location: profile.location,
+          lifestyle: profile.lifestyle,
+          budget: profile.budget,
+          roomPreference: profile.room_preference,
+          moveInDate: profile.move_in_date,
+          similarity: 0.5,
+          matchProbability: 50.0,
+          matchInterpretation: "Error processing match data"
+        };
+      }
     });
     
     return {
@@ -382,5 +488,6 @@ const logRequest = (req, res, next) => {
 module.exports = {
   getDiscoveryProfiles,
   recordSwipe,
-  getUserMatches
+  getUserMatches,
+  checkMLServerHealth
 }; 

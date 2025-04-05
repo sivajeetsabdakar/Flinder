@@ -10,6 +10,7 @@ const discoveryRoutes = require('./routes/discoveryRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const preferenceRoutes = require('./routes/preferenceRoutes');
 const healthRoutes = require('./routes/healthRoutes');
+const flatRoutes = require('./routes/flatRoutes');
 
 
 // Create Express app
@@ -34,6 +35,7 @@ app.use('/api/discover', discoveryRoutes);
 app.use('/api/conversations', chatRoutes);
 app.use('/api/preferences', preferenceRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/flats', flatRoutes);
 
 // Root route
 app.get('/', (req, res) => {
