@@ -1,46 +1,32 @@
-const { 
-  getDiscoveryProfiles, 
-  recordSwipe, 
-  getUserMatches 
-} = require('../models/discoveryModel');
-const Joi = require('joi');
-
-// Validation schemas
-const swipeSchema = Joi.object({
-  targetUserId: Joi.string().required(),
-  direction: Joi.string().valid('left', 'right').required()
-});
+const discoveryModel = require('../models/discoveryModel');
 
 /**
- * Get discovery profiles
- * @param {object} req - Express request object
- * @param {object} res - Express response object
+ * @route   GET /api/discover
+ * @desc    Get potential roommate matches based on user preferences
+ * @access  Private
  */
-const getDiscoveryProfilesHandler = async (req, res) => {
+const getDiscoveryProfiles = async (req, res) => {
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not authenticated'
-      });
-    }
-
+    const userId = req.user.id;
     const limit = parseInt(req.query.limit) || 10;
     const offset = parseInt(req.query.offset) || 0;
-
-    if (limit < 0 || offset < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid pagination parameters'
-      });
-    }
     
-    const { profiles, pagination, error } = await getDiscoveryProfiles(req.user.id, limit, offset);
+    console.log(`Processing discovery request for user: ${userId}, limit: ${limit}, offset: ${offset}`);
+    
+    // Get discovery profiles directly from the model
+    // We're passing only userId because we're not filtering on specific preferences
+    const { profiles, pagination, error } = await discoveryModel.getDiscoveryProfiles(
+      userId,
+      limit,
+      offset
+    );
     
     if (error) {
+      console.error('Error in discovery controller:', error);
       return res.status(400).json({
         success: false,
-        message: error.message || 'Failed to retrieve discovery profiles'
+        message: 'Failed to retrieve discovery profiles',
+        error: error.message
       });
     }
     
@@ -50,97 +36,79 @@ const getDiscoveryProfilesHandler = async (req, res) => {
       pagination
     });
   } catch (error) {
+    console.error('Get discovery profiles error:', error);
     return res.status(500).json({
       success: false,
-      message: 'An error occurred while retrieving discovery profiles'
+      message: 'Server error',
+      error: error.message
     });
   }
 };
 
 /**
- * Record a swipe action
- * @param {object} req - Express request object
- * @param {object} res - Express response object
+ * @route   POST /api/discover/swipe
+ * @desc    Record a swipe action
+ * @access  Private
  */
-const recordSwipeHandler = async (req, res) => {
+const recordSwipe = async (req, res) => {
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not authenticated'
-      });
-    }
-
-    const { error: validationError, value } = swipeSchema.validate(req.body);
-    if (validationError) {
+    const userId = req.user.id;
+    const { targetUserId, action } = req.body;
+    
+    if (!targetUserId || !action) {
       return res.status(400).json({
         success: false,
-        message: validationError.details[0].message
-      });
-    }
-
-    if (value.targetUserId === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot swipe on your own profile'
+        message: 'Target user ID and action are required'
       });
     }
     
-    const { success, match, matchDetails, error: swipeError } = await recordSwipe(
-      req.user.id,
-      value.targetUserId,
-      value.direction
-    );
-    
-    if (swipeError) {
+    if (action !== 'like' && action !== 'pass') {
       return res.status(400).json({
         success: false,
-        message: swipeError.message || 'Failed to record swipe'
+        message: 'Action must be either "like" or "pass"'
       });
     }
     
-    if (match) {
-      return res.status(200).json({
-        success: true,
-        message: "It's a match!",
-        match: true,
-        matchDetails
+    const { success, match, error } = await discoveryModel.recordSwipe(userId, targetUserId, action);
+    
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to record swipe',
+        error: error.message
       });
     }
     
     return res.status(200).json({
       success: true,
-      message: 'Preference recorded',
-      match: false
+      match: match || null
     });
   } catch (error) {
+    console.error('Record swipe error:', error);
     return res.status(500).json({
       success: false,
-      message: 'An error occurred while recording swipe'
+      message: 'Server error',
+      error: error.message
     });
   }
 };
 
 /**
- * Get user matches
- * @param {object} req - Express request object
- * @param {object} res - Express response object
+ * @route   GET /api/discover/matches
+ * @desc    Get all user matches
+ * @access  Private
  */
-const getUserMatchesHandler = async (req, res) => {
+const getUserMatches = async (req, res) => {
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not authenticated'
-      });
-    }
-
-    const { matches, error } = await getUserMatches(req.user.id);
+    const userId = req.user.id;
+    
+    const { matches, error } = await discoveryModel.getUserMatches(userId);
     
     if (error) {
       return res.status(400).json({
         success: false,
-        message: error.message || 'Failed to retrieve matches'
+        message: 'Failed to retrieve matches',
+        error: error.message
       });
     }
     
@@ -149,15 +117,17 @@ const getUserMatchesHandler = async (req, res) => {
       matches
     });
   } catch (error) {
+    console.error('Get user matches error:', error);
     return res.status(500).json({
       success: false,
-      message: 'An error occurred while retrieving matches'
+      message: 'Server error',
+      error: error.message
     });
   }
 };
 
 module.exports = {
-  getDiscoveryProfiles: getDiscoveryProfilesHandler,
-  recordSwipe: recordSwipeHandler,
-  getUserMatches: getUserMatchesHandler
-}; 
+  getDiscoveryProfiles,
+  recordSwipe,
+  getUserMatches
+};
