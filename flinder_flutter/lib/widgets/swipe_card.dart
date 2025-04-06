@@ -296,9 +296,12 @@ class _SwipeCardState extends State<SwipeCard>
 
   Widget _buildCardContent(UserProfile profile) {
     // Debug profile name
-    print(
-      'Building card for profile: ${profile.name}, ID: ${profile.preferences?['UserID'] ?? 'unknown'}',
-    );
+    print('Building card for profile: ${profile.name}, ID: ${profile.id}');
+
+    // Create Supabase profile image URL with user's UUID
+    final String supabaseProfileImageUrl =
+        'https://frjdhtasvvyutekzmfgb.supabase.co/storage/v1/object/public/profile/${profile.id}.jpg';
+    print('Using Supabase profile image URL: $supabaseProfileImageUrl');
 
     return Card(
       margin: EdgeInsets.zero,
@@ -311,8 +314,23 @@ class _SwipeCardState extends State<SwipeCard>
           Positioned.fill(
             child: Container(
               color: Colors.grey.shade900,
-              child:
-                  profile.photoUrl != null && profile.photoUrl!.isNotEmpty
+              child: CachedNetworkImage(
+                imageUrl:
+                    supabaseProfileImageUrl, // Use Supabase storage URL with user's UUID
+                fit: BoxFit.cover,
+                placeholder:
+                    (context, url) => Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.primaryPurple,
+                        ),
+                      ),
+                    ),
+                errorWidget: (context, url, error) {
+                  print('Error loading image from $url: $error');
+                  // Fall back to the photoUrl property if available, otherwise show icon
+                  return profile.photoUrl != null &&
+                          profile.photoUrl!.isNotEmpty
                       ? CachedNetworkImage(
                         imageUrl: profile.photoUrl!,
                         fit: BoxFit.cover,
@@ -339,7 +357,9 @@ class _SwipeCardState extends State<SwipeCard>
                           size: 100,
                           color: Colors.grey,
                         ),
-                      ),
+                      );
+                },
+              ),
             ),
           ),
 
@@ -358,7 +378,7 @@ class _SwipeCardState extends State<SwipeCard>
                 ),
               ),
               child: Text(
-                "ID: ${profile.preferences?['UserID'] ?? 'Unknown'}",
+                "ID: ${profile.id}",
                 style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ),

@@ -622,6 +622,14 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
         ),
         const SizedBox(height: 12),
         _buildActionButton(
+          icon: Icons.apartment,
+          label: 'My Applications',
+          onTap: () {
+            AppRouter.navigateToMyApplications(context);
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildActionButton(
           icon: Icons.settings,
           label: 'Account Settings',
           onTap: () {

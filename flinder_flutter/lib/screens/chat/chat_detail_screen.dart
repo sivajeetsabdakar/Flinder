@@ -7,6 +7,7 @@ import '../../providers/chat_context.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import 'create_group_screen.dart';
+import 'dart:developer';
 
 class ChatDetailScreen extends StatefulWidget {
   final String chatId;
@@ -28,12 +29,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   bool _showCreateGroupWidget = false;
   String? _chatTitle;
   bool _isFetchingTitle = false;
+  bool _isLoadingUsers = false;
+  List<Map<String, dynamic>> _connectedUsers = [];
 
   @override
   void initState() {
     super.initState();
     _loadData();
-    _fetchChatTitle();
+
+    // Immediately fetch the chat title
+    Future.microtask(() => _fetchChatTitle());
 
     // Register a callback to scroll when new messages arrive
     Future.microtask(() {
@@ -223,16 +228,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             _isFetchingTitle = false;
           });
           print('ChatDetailScreen: Set chat title to user name: $_chatTitle');
+          return;
         }
-      } else {
-        // Fallback to thread name or "Chat"
-        final defaultTitle = _getDefaultTitle();
-        setState(() {
-          _chatTitle = defaultTitle;
-          _isFetchingTitle = false;
-        });
-        print('ChatDetailScreen: Fallback to default title: $_chatTitle');
       }
+
+      // Fallback to thread name or "Chat"
+      final defaultTitle = _getDefaultTitle();
+      setState(() {
+        _chatTitle = defaultTitle;
+        _isFetchingTitle = false;
+      });
+      print('ChatDetailScreen: Fallback to default title: $_chatTitle');
     } catch (e) {
       print('Error fetching chat title: $e');
       if (mounted) {
@@ -280,17 +286,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   String _getTitle() {
     // Try to fetch again if we still have "Chat" as the title
-    if (_chatTitle == "Chat" && !_isFetchingTitle) {
-      Future.microtask(() => _fetchChatTitle());
+    if ((_chatTitle == null || _chatTitle == "Chat") && !_isFetchingTitle) {
+      print('ChatDetailScreen: Title is "$_chatTitle", trying to fetch again');
+      // Use immediate call instead of microtask to be more aggressive
+      _fetchChatTitle();
     }
 
     // If we've already fetched the title, use it
-    if (_chatTitle != null) {
+    if (_chatTitle != null && _chatTitle != "Chat") {
+      print('ChatDetailScreen: Using fetched title: $_chatTitle');
       return _chatTitle!;
     }
 
     // Otherwise use the default title while we're fetching
-    return _getDefaultTitle();
+    final defaultTitle = _getDefaultTitle();
+    print('ChatDetailScreen: Using default title: $defaultTitle');
+    return defaultTitle;
   }
 
   // Create a group chat with current chat participant
@@ -335,44 +346,119 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
+  // Show dropdown menu with users to create a group chat with
+  void _showUserSelectionMenu(BuildContext context) async {
+    // Only show the menu if we have the current user ID
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot load users at this time')),
+      );
+      return;
+    }
+
+    // Show loading indicator
+    setState(() {
+      _isLoadingUsers = true;
+    });
+
+    try {
+      final chatContext = Provider.of<ChatContext>(context, listen: false);
+
+      // Get users from chat context
+      final users = await chatContext.getUsersWithActiveChats();
+
+      // Hide loading indicator
+      setState(() {
+        _isLoadingUsers = false;
+        _connectedUsers = List<Map<String, dynamic>>.from(users);
+      });
+
+      if (_connectedUsers.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No contacts found to create a group with'),
+          ),
+        );
+        return;
+      }
+
+      // Navigate to create group screen with pre-selected user
+      final otherUser = _getOtherUser();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => CreateGroupScreen(
+                existingThreads: chatContext.threads,
+                currentUserId: _currentUserId!,
+                preselectedUsers: otherUser != null ? [otherUser] : null,
+              ),
+        ),
+      );
+    } catch (e) {
+      log('Error loading users for group: $e');
+      // Hide loading indicator
+      setState(() {
+        _isLoadingUsers = false;
+      });
+      // Show error
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load contacts: $e')));
+    }
+  }
+
+  // Add a method to force refresh the chat title
+  void _forceTitleRefresh() {
+    setState(() {
+      _chatTitle = null;
+      _isFetchingTitle = false;
+    });
+    _fetchChatTitle();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title:
-            _isFetchingTitle
-                ? Row(
-                  children: const [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        strokeWidth: 2.0,
-                      ),
-                    ),
-                    SizedBox(width: 10),
-                    Text("Loading chat..."),
-                  ],
-                )
-                : Text(_getTitle()),
+        title: _buildAppBarTitle(),
         elevation: 0,
         backgroundColor: AppTheme.primaryPurple,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed:
-                () => context.read<ChatContext>().loadMessages(widget.chatId),
-          ),
-          // Add group creation button only for non-group chats
-          if (widget.thread != null && !widget.thread!.isGroup)
+          // Show a button to refresh the title if it's showing "Chat"
+          if (_chatTitle == "Chat" && !_isFetchingTitle)
             IconButton(
-              icon: const Icon(Icons.group_add),
-              tooltip: 'Create group with this user',
-              onPressed: _createGroupWithCurrentUser,
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh user info',
+              onPressed: _forceTitleRefresh,
             ),
+          // Show a loading indicator when fetching users for group creation
+          if (_isLoadingUsers)
+            Container(
+              margin: const EdgeInsets.only(right: 16.0),
+              width: 20,
+              height: 20,
+              child: const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                strokeWidth: 2.0,
+              ),
+            )
+          else ...[
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed:
+                  () => context.read<ChatContext>().loadMessages(widget.chatId),
+            ),
+            // Add group creation button only for non-group chats
+            if (widget.thread != null && !widget.thread!.isGroup)
+              IconButton(
+                icon: const Icon(Icons.group_add),
+                tooltip: 'Create group with this user',
+                onPressed: _createGroupWithCurrentUser,
+              ),
+          ],
         ],
       ),
       body:
@@ -386,6 +472,33 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               )
               : _buildChatBody(),
     );
+  }
+
+  Widget _buildAppBarTitle() {
+    if (_isFetchingTitle) {
+      return Row(
+        children: const [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              strokeWidth: 2.0,
+            ),
+          ),
+          SizedBox(width: 10),
+          Text("Loading chat..."),
+        ],
+      );
+    }
+
+    final title = _getTitle();
+    if (title == "Chat") {
+      // If still showing "Chat", trigger a refresh
+      Future.microtask(() => _forceTitleRefresh());
+    }
+
+    return Text(title);
   }
 
   Widget _buildChatBody() {

@@ -174,7 +174,31 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         // Save to shared preferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user', jsonEncode(currentUser.toJson()));
+
+        // Double check it was saved correctly
+        final savedUserJson = prefs.getString('user');
+        if (savedUserJson != null) {
+          final savedUserData = jsonDecode(savedUserJson);
+          final savedProfileCompleted =
+              savedUserData['isProfileCompleted'] ?? false;
+          print(
+            'ProfileCompletionScreen - Profile completion status after save: $savedProfileCompleted',
+          );
+
+          if (!savedProfileCompleted) {
+            // Force direct update if not saved correctly
+            print(
+              'ProfileCompletionScreen - Forcing direct update of isProfileCompleted',
+            );
+            Map<String, dynamic> userData = jsonDecode(savedUserJson);
+            userData['isProfileCompleted'] = true;
+            await prefs.setString('user', jsonEncode(userData));
+          }
+        }
       }
+
+      // Also update using UserProfileService to ensure consistency
+      await UserProfileService.updateProfileStatus(true);
 
       print(
         'ProfileCompletionScreen - Profile marked as completed, navigating to main screen',

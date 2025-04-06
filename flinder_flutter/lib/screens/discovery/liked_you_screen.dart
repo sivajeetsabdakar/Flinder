@@ -10,6 +10,7 @@ import '../../providers/chat_context.dart';
 import '../../widgets/app_bar_with_logout.dart';
 import '../chat/chat_detail_screen.dart';
 import '../../models/chat_thread.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class LikedYouScreen extends StatefulWidget {
   const LikedYouScreen({Key? key}) : super(key: key);
@@ -349,10 +350,30 @@ class _LikedYouScreenState extends State<LikedYouScreen> {
                 leading: CircleAvatar(
                   radius: 40,
                   backgroundColor: AppTheme.primaryPurple.withOpacity(0.2),
-                  child:
-                      profile.photoUrl != null
-                          ? ClipOval(
-                            child: Image.network(
+                  child: ClipOval(
+                    child: CachedNetworkImage(
+                      imageUrl:
+                          'https://frjdhtasvvyutekzmfgb.supabase.co/storage/v1/object/public/profile/${profile.id}.jpg',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      placeholder:
+                          (context, url) => const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppTheme.primaryPurple,
+                              ),
+                              strokeWidth: 2.0,
+                            ),
+                          ),
+                      errorWidget: (context, url, error) {
+                        print(
+                          'Error loading profile image for ${profile.id}: $error',
+                        );
+                        // Fall back to the photoUrl property if available
+                        return profile.photoUrl != null &&
+                                profile.photoUrl!.isNotEmpty
+                            ? Image.network(
                               profile.photoUrl!,
                               width: 80,
                               height: 80,
@@ -364,13 +385,15 @@ class _LikedYouScreenState extends State<LikedYouScreen> {
                                   color: Colors.white,
                                 );
                               },
-                            ),
-                          )
-                          : const Icon(
-                            Icons.person,
-                            size: 40,
-                            color: Colors.white,
-                          ),
+                            )
+                            : const Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Colors.white,
+                            );
+                      },
+                    ),
+                  ),
                 ),
                 title: Row(
                   children: [

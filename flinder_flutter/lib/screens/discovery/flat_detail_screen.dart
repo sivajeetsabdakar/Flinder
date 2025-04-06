@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/flat_model.dart';
+import '../../models/chat_thread.dart';
+import '../../providers/chat_context.dart';
 import '../../services/flat_service.dart';
+import '../../services/flat_application_service.dart';
 import '../../theme/app_theme.dart';
 
 class FlatDetailScreen extends StatefulWidget {
@@ -14,13 +18,17 @@ class FlatDetailScreen extends StatefulWidget {
 
 class _FlatDetailScreenState extends State<FlatDetailScreen> {
   bool _isLoading = true;
+  bool _isApplying = false;
   FlatModel? _flat;
   String? _error;
+  String? _selectedGroupId;
+  List<ChatThread> _groupChats = [];
 
   @override
   void initState() {
     super.initState();
     _loadFlatDetails();
+    _loadGroupChats();
   }
 
   Future<void> _loadFlatDetails() async {
@@ -42,6 +50,75 @@ class _FlatDetailScreenState extends State<FlatDetailScreen> {
         setState(() {
           _error = 'Failed to load flat details: $e';
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadGroupChats() async {
+    try {
+      final chatContext = Provider.of<ChatContext>(context, listen: false);
+      await chatContext.loadChatThreads();
+
+      if (mounted) {
+        setState(() {
+          // Filter only group chats
+          _groupChats =
+              chatContext.threads.where((thread) => thread.isGroup).toList();
+
+          // Select the first group chat by default if available
+          if (_groupChats.isNotEmpty && _selectedGroupId == null) {
+            _selectedGroupId = _groupChats.first.id;
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading group chats: $e');
+    }
+  }
+
+  Future<void> _applyForFlat() async {
+    if (_selectedGroupId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a group to apply with'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isApplying = true;
+    });
+
+    try {
+      final application = await FlatApplicationService.applyForFlat(
+        flatId: widget.flatId,
+        groupChatId: _selectedGroupId!,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Application submitted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error applying for flat: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isApplying = false;
         });
       }
     }
@@ -149,23 +226,37 @@ class _FlatDetailScreenState extends State<FlatDetailScreen> {
   }
 
   Widget _buildFlatDetails() {
-    return CustomScrollView(
-      slivers: [
-        _buildAppBar(title: _flat!.title),
-        SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Hero image
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child:
-                    _flat!.imageUrl != null
-                        ? Image.network(
-                          _flat!.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
+    return Stack(
+      children: [
+        CustomScrollView(
+          slivers: [
+            _buildAppBar(title: _flat!.title),
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Hero image
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child:
+                        _flat!.imageUrl != null
+                            ? Image.network(
+                              _flat!.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[800],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.apartment,
+                                      size: 50,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                            : Container(
                               color: Colors.grey[800],
                               child: const Center(
                                 child: Icon(
@@ -174,196 +265,272 @@ class _FlatDetailScreenState extends State<FlatDetailScreen> {
                                   color: Colors.white70,
                                 ),
                               ),
-                            );
-                          },
-                        )
-                        : Container(
-                          color: Colors.grey[800],
-                          child: const Center(
-                            child: Icon(
-                              Icons.apartment,
-                              size: 50,
-                              color: Colors.white70,
                             ),
-                          ),
-                        ),
-              ),
+                  ),
 
-              // Price and details card
-              Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title and price
-                    Row(
+                  // Price and details card
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            _flat!.title,
-                            style: const TextStyle(
-                              fontSize: 22,
+                        // Title and price
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _flat!.title,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryPurple.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '₹${_flat!.rent.toString()}/mo',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryPurple,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Address
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 16,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${_flat!.address}, ${_flat!.city}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[400],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Flat details
+                        Row(
+                          children: [
+                            _buildDetailItem(
+                              Icons.bedroom_parent_outlined,
+                              '${_flat!.numRooms} BHK',
+                            ),
+                            const Spacer(),
+                            _buildDetailItem(Icons.location_city, _flat!.city),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Description
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Description',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _flat!.description,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[300],
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Amenities
+                  if (_flat!.amenities.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Amenities',
+                            style: TextStyle(
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 16,
+                            runSpacing: 16,
+                            children:
+                                _flat!.amenities.map((amenity) {
+                                  return _buildAmenityItem(amenity);
+                                }).toList(),
                           ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryPurple.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '₹${_flat!.rent.toString()}/mo',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryPurple,
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 32),
 
-                    // Address
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 16,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '${_flat!.address}, ${_flat!.city}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[400],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Flat details
-                    Row(
-                      children: [
-                        _buildDetailItem(
-                          Icons.bedroom_parent_outlined,
-                          '${_flat!.numRooms} BHK',
-                        ),
-                        const Spacer(),
-                        _buildDetailItem(Icons.location_city, _flat!.city),
-                      ],
-                    ),
-                  ],
-                ),
+                  // Add the group chat selection and apply button
+                  _buildApplicationSection(),
+                ],
               ),
-
-              // Description
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Description',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _flat!.description,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[300],
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Amenities
-              if (_flat!.amenities.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Amenities',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
-                        children:
-                            _flat!.amenities.map((amenity) {
-                              return _buildAmenityItem(amenity);
-                            }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 32),
-
-              // Contact button
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Contact feature coming soon!'),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryPurple,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Contact Owner',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Bottom padding
-              const SizedBox(height: 24),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _buildApplicationSection() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.primaryPurple.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Apply with your group',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          if (_groupChats.isEmpty)
+            const Text(
+              'You don\'t have any group chats yet. Create a group chat to apply for this flat.',
+              style: TextStyle(color: Colors.grey),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select a group to apply with:',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                _buildGroupSelector(),
+                const SizedBox(height: 16),
+                _buildApplyButton(),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[800],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedGroupId,
+          isExpanded: true,
+          dropdownColor: Colors.grey[800],
+          style: const TextStyle(color: Colors.white),
+          hint: const Text(
+            'Select a group',
+            style: TextStyle(color: Colors.grey),
+          ),
+          items:
+              _groupChats.map((group) {
+                return DropdownMenuItem<String>(
+                  value: group.id,
+                  child: Text(
+                    group.name ?? 'Unnamed Group',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                );
+              }).toList(),
+          onChanged: (value) {
+            setState(() {
+              _selectedGroupId = value;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplyButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isApplying ? null : _applyForFlat,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.primaryPurple,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        child:
+            _isApplying
+                ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                : const Text(
+                  'Apply Now',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+      ),
     );
   }
 
@@ -397,13 +564,9 @@ class _FlatDetailScreenState extends State<FlatDetailScreen> {
 
   SliverAppBar _buildAppBar({required String title}) {
     return SliverAppBar(
-      expandedHeight: 0,
+      expandedHeight: 60,
       pinned: true,
       backgroundColor: Colors.black,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () => Navigator.pop(context),
-      ),
       title: Text(
         title,
         style: const TextStyle(
@@ -411,24 +574,7 @@ class _FlatDetailScreenState extends State<FlatDetailScreen> {
           fontWeight: FontWeight.bold,
         ),
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.favorite_border),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Save feature coming soon!')),
-            );
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.share),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Share feature coming soon!')),
-            );
-          },
-        ),
-      ],
+      iconTheme: const IconThemeData(color: Colors.white),
     );
   }
 }

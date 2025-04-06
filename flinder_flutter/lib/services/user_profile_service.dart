@@ -15,7 +15,27 @@ class UserProfileService {
   static Future<bool> isProfileCompleted() async {
     try {
       print('$_tag - Checking if profile is completed');
-      // Get the current user
+
+      // First check shared preferences directly for more reliable persistence
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('user');
+
+      if (userJson != null) {
+        try {
+          final userData = jsonDecode(userJson);
+          final completed = userData['isProfileCompleted'] ?? false;
+          print(
+            '$_tag - Profile completion status from SharedPreferences: $completed',
+          );
+          if (completed) {
+            return true;
+          }
+        } catch (e) {
+          print('$_tag - Error parsing user data from SharedPreferences: $e');
+        }
+      }
+
+      // If not found in SharedPreferences or not completed, try getting from User model
       final user = await AuthService.getCurrentUser();
       if (user == null) {
         print('$_tag - No user found');
@@ -24,7 +44,20 @@ class UserProfileService {
 
       // Check if the profile is marked as completed in the user data
       final completed = user.isProfileCompleted ?? false;
-      print('$_tag - Profile completion status: $completed');
+      print('$_tag - Profile completion status from UserModel: $completed');
+
+      // If completed, make sure it's also saved in SharedPreferences for consistency
+      if (completed && userJson != null) {
+        try {
+          final userData = jsonDecode(userJson);
+          userData['isProfileCompleted'] = true;
+          await prefs.setString('user', jsonEncode(userData));
+          print('$_tag - Updated SharedPreferences with completed status');
+        } catch (e) {
+          print('$_tag - Error updating SharedPreferences: $e');
+        }
+      }
+
       return completed;
     } catch (e) {
       print('$_tag - ERROR checking profile completion: $e');
@@ -36,6 +69,7 @@ class UserProfileService {
   static Future<bool> updateProfileStatus(bool isCompleted) async {
     try {
       print('$_tag - Updating profile completion status to: $isCompleted');
+
       // Get the current user
       final user = await AuthService.getCurrentUser();
       if (user == null) {
@@ -46,9 +80,31 @@ class UserProfileService {
       // Update the user model
       user.isProfileCompleted = isCompleted;
 
-      // Save in shared preferences
+      // Save in shared preferences - CRITICAL for persistence
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user', jsonEncode(user.toJson()));
+
+      // Double check that it was really saved
+      final savedUserJson = prefs.getString('user');
+      if (savedUserJson != null) {
+        final savedUserData = jsonDecode(savedUserJson);
+        final savedProfileCompleted =
+            savedUserData['isProfileCompleted'] ?? false;
+        print(
+          '$_tag - Profile completion status after save: $savedProfileCompleted',
+        );
+
+        // If not saved correctly, force it again
+        if (isCompleted && !savedProfileCompleted) {
+          print(
+            '$_tag - Forced update of isProfileCompleted in SharedPreferences',
+          );
+          Map<String, dynamic> userData = jsonDecode(savedUserJson);
+          userData['isProfileCompleted'] = true;
+          await prefs.setString('user', jsonEncode(userData));
+        }
+      }
+
       print('$_tag - User profile status updated in local storage');
 
       // Update in the backend (Supabase)

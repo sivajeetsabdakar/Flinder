@@ -41,11 +41,34 @@ class UserModel {
       'id': id,
       'email': email,
       'name': name,
-      'isProfileCompleted': isProfileCompleted,
+      'isProfileCompleted': isProfileCompleted ?? false,
       'onlineStatus': onlineStatus,
       'lastOnline': lastOnline?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
       'verificationStatus': verificationStatus,
     };
+  }
+
+  // Create a copy of this model with updated fields
+  UserModel copyWith({
+    String? id,
+    String? email,
+    String? name,
+    bool? isProfileCompleted,
+    String? onlineStatus,
+    DateTime? lastOnline,
+    DateTime? createdAt,
+    String? verificationStatus,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      name: name ?? this.name,
+      isProfileCompleted: isProfileCompleted ?? this.isProfileCompleted,
+      onlineStatus: onlineStatus ?? this.onlineStatus,
+      lastOnline: lastOnline ?? this.lastOnline,
+      createdAt: createdAt ?? this.createdAt,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+    );
   }
 }

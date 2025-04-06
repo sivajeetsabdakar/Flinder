@@ -810,13 +810,14 @@ class ChatContext extends ChangeNotifier {
       await client.from('chat_members').insert(membersToInsert);
       print('ChatContext: Added ${memberIds.length} members to chat $chatId');
 
-      // 3. Add a system message about group creation
+      // 3. Add a system message about group creation (without is_system_message field)
       await client.from('messages').insert({
         'chat_id': chatId,
         'sender_id': userId,
-        'content': 'Group "$groupName" created',
-        'is_system_message': true,
+        'content': 'Group "$groupName" was created',
+        'sent_at': DateTime.now().toIso8601String(),
       });
+      print('ChatContext: Added initial message to group chat');
 
       // 4. Reload threads to include the new group
       await loadChatThreads();
@@ -901,18 +902,27 @@ class ChatContext extends ChangeNotifier {
     final userId = await _getCurrentUserId();
 
     if (client == null || userId == null) {
+      print('ChatContext: Cannot get users - client or userId is null');
       return [];
     }
 
     try {
+      print('ChatContext: Fetching active chats for user $userId');
+
       // Get all chats the current user is a member of
       final chatMembersResponse = await client
           .from('chat_members')
           .select('chat_id')
           .eq('user_id', userId);
 
+      print(
+        'ChatContext: Found ${chatMembersResponse?.length ?? 0} chats for current user',
+      );
+
       if (chatMembersResponse == null ||
           (chatMembersResponse as List).isEmpty) {
+        // If no chats found, return empty list instead of fetching all users
+        print('ChatContext: No chats found, returning empty list');
         return [];
       }
 
@@ -923,51 +933,73 @@ class ChatContext extends ChangeNotifier {
               .toList();
 
       if (chatIds.isEmpty) {
+        print('ChatContext: No chat IDs extracted, returning empty list');
         return [];
       }
+
+      print('ChatContext: Found ${chatIds.length} chat IDs: $chatIds');
 
       // Get all members of these chats excluding the current user
       final List<dynamic> otherMembers = [];
 
       // Fetch members for each chat separately since we can't use in_
       for (final chatId in chatIds) {
-        final chatMembersResult = await client
-            .from('chat_members')
-            .select(
-              'user_id, users!inner(id, email, name, profile_picture_url)',
-            )
-            .eq('chat_id', chatId)
-            .neq('user_id', userId);
+        print('ChatContext: Fetching members for chat $chatId');
+        try {
+          final chatMembersResult = await client
+              .from('chat_members')
+              .select('user_id, users!inner(id, email, name)')
+              .eq('chat_id', chatId)
+              .neq('user_id', userId);
 
-        if (chatMembersResult != null &&
-            (chatMembersResult as List).isNotEmpty) {
-          otherMembers.addAll(chatMembersResult);
+          print(
+            'ChatContext: Found ${chatMembersResult?.length ?? 0} members for chat $chatId',
+          );
+
+          if (chatMembersResult != null &&
+              (chatMembersResult as List).isNotEmpty) {
+            otherMembers.addAll(chatMembersResult);
+          }
+        } catch (e) {
+          print('ChatContext: Error fetching members for chat $chatId: $e');
+          // Continue with other chats even if one fails
         }
       }
 
       if (otherMembers.isEmpty) {
+        print(
+          'ChatContext: No other members found in chats, returning empty list',
+        );
         return [];
       }
+
+      print('ChatContext: Found ${otherMembers.length} other members in total');
 
       // Extract unique users
       final Set<String> uniqueUserIds = {};
       final List<dynamic> uniqueUsers = [];
 
       for (var member in otherMembers) {
-        final userData = member['users'];
-        final userId = userData['id'] as String;
+        try {
+          final userData = member['users'];
+          final userId = userData['id'] as String;
 
-        if (!uniqueUserIds.contains(userId)) {
-          uniqueUserIds.add(userId);
-          uniqueUsers.add({
-            'id': userId,
-            'name': userData['name'] ?? 'Unknown User',
-            'email': userData['email'] ?? '',
-            'profilePic': userData['profile_picture_url'],
-          });
+          if (!uniqueUserIds.contains(userId)) {
+            uniqueUserIds.add(userId);
+            uniqueUsers.add({
+              'id': userId,
+              'name': userData['name'] ?? 'Unknown User',
+              'email': userData['email'] ?? '',
+              'profilePic': null, // We don't have profile pictures yet
+            });
+          }
+        } catch (e) {
+          print('ChatContext: Error processing member data: $e');
+          // Skip this member and continue
         }
       }
 
+      print('ChatContext: Returning ${uniqueUsers.length} unique users');
       return uniqueUsers;
     } catch (e) {
       print('ChatContext: Error getting users with active chats: $e');
@@ -984,17 +1016,18 @@ class ChatContext extends ChangeNotifier {
         return null;
       }
 
-      // Fetch user data from the users table
+      // Fetch user data from the users table - remove profile_picture_url
       final response =
           await client
               .from('users')
-              .select('id, name, email, profile_picture_url')
+              .select('id, name, email')
               .eq('id', userId)
               .single();
 
       if (response != null) {
         print('ChatContext: Found user details for ID: $userId');
-        return response;
+        // Add a null profilePic field for compatibility
+        return {...response, 'profilePic': null};
       } else {
         print('ChatContext: No user details found for ID: $userId');
         return null;
@@ -1045,7 +1078,7 @@ class ChatContext extends ChangeNotifier {
             .select('user_id')
             .eq('chat_id', chatId);
 
-        print('ChatContext: Chat members: $membersResponse');
+        print('ChatContext: Chat members raw response: $membersResponse');
 
         if (membersResponse == null || (membersResponse as List).isEmpty) {
           print('ChatContext: No members found for chat: $chatId');
@@ -1055,14 +1088,19 @@ class ChatContext extends ChangeNotifier {
         // Find the member that is not the current user
         String? otherUserId;
         for (var member in membersResponse) {
+          if (member == null || !member.containsKey('user_id')) {
+            print('ChatContext: Invalid member data: $member');
+            continue;
+          }
+
           final memberId = member['user_id'] as String;
           print(
-            'ChatContext: Checking member: $memberId vs current: $currentUserId',
+            'ChatContext: Checking member ID: $memberId vs current: $currentUserId',
           );
 
           if (memberId != currentUserId) {
             otherUserId = memberId;
-            print('ChatContext: Found other user: $otherUserId');
+            print('ChatContext: Found other user ID: $otherUserId');
             break;
           }
         }
@@ -1074,17 +1112,21 @@ class ChatContext extends ChangeNotifier {
 
         // Get user details - try a direct query first
         try {
+          print('ChatContext: Fetching user details for ID: $otherUserId');
           final userResponse =
               await client
                   .from('users')
-                  .select('id, name, email, profile_picture_url')
+                  .select('id, name, email')
                   .eq('id', otherUserId)
                   .maybeSingle();
 
-          print('ChatContext: Found user details: $userResponse');
+          print('ChatContext: User details response: $userResponse');
 
           if (userResponse != null) {
-            return userResponse;
+            // Add a null profilePic field for compatibility
+            final result = {...userResponse, 'profilePic': null};
+            print('ChatContext: Returning user details: $result');
+            return result;
           }
         } catch (userError) {
           print(
@@ -1095,6 +1137,18 @@ class ChatContext extends ChangeNotifier {
         // Fallback to our helper method
         final userDetails = await getUserDetailsById(otherUserId);
         print('ChatContext: User details from fallback: $userDetails');
+
+        // If we still don't have user details, create a dummy user with the ID
+        if (userDetails == null) {
+          print('ChatContext: Creating dummy user for ID: $otherUserId');
+          return {
+            'id': otherUserId,
+            'name': 'User ${otherUserId.substring(0, 6)}',
+            'email': null,
+            'profilePic': null,
+          };
+        }
+
         return userDetails;
       } catch (chatError) {
         print('ChatContext: Error getting chat details: $chatError');

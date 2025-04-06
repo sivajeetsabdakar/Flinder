@@ -222,7 +222,18 @@ class AuthService {
 
       print('$_tag - User found in storage');
       final userJson = jsonDecode(userString);
-      return UserModel.fromJson(userJson);
+
+      // Ensure isProfileCompleted is correctly parsed
+      if (userJson['isProfileCompleted'] == null) {
+        userJson['isProfileCompleted'] = false;
+      } else if (userJson['isProfileCompleted'] is String) {
+        // Handle if it's a string value like "true" or "false"
+        userJson['isProfileCompleted'] =
+            userJson['isProfileCompleted'].toLowerCase() == 'true';
+      }
+
+      final user = UserModel.fromJson(userJson);
+      return user;
     } catch (e) {
       print('$_tag - ERROR getting current user: $e');
       return null;
@@ -313,23 +324,46 @@ class AuthService {
     return a < b ? a : b;
   }
 
+  // Get current user ID
+  static Future<String?> getCurrentUserId() async {
+    try {
+      print('$_tag - Getting current user ID');
+      final user = await getCurrentUser();
+      if (user == null) {
+        print('$_tag - No user found, cannot get ID');
+        return null;
+      }
+
+      print('$_tag - Retrieved user ID: ${user.id}');
+      return user.id;
+    } catch (e) {
+      print('$_tag - ERROR getting current user ID: $e');
+      return null;
+    }
+  }
+
   // Get profile completion status from storage
   static Future<bool> getProfileCompletionStatus() async {
     try {
       // Try to get from shared preferences first (faster)
       final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString('user');
+      final userJson = prefs.getString(_userKey);
 
       if (userJson != null) {
         final userData = jsonDecode(userJson);
-        return userData['isProfileCompleted'] ?? false;
+        final isCompleted = userData['isProfileCompleted'] ?? false;
+        print('$_tag - Profile completion status from storage: $isCompleted');
+        return isCompleted;
       }
 
       // Fallback to current user in memory
       final user = await getCurrentUser();
+      print(
+        '$_tag - Profile completion status from user model: ${user?.isProfileCompleted}',
+      );
       return user?.isProfileCompleted ?? false;
     } catch (e) {
-      print('AuthService: Error getting profile completion status: $e');
+      print('$_tag - Error getting profile completion status: $e');
       return false;
     }
   }

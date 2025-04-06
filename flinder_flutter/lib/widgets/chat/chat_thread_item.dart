@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/chat_thread.dart';
 import '../../models/app_user.dart';
 import '../../theme/app_theme.dart';
@@ -134,14 +135,61 @@ class ChatThreadItem extends StatelessWidget {
         backgroundColor: AppTheme.lightPurple.withOpacity(0.3),
         child: const Icon(Icons.group, color: AppTheme.primaryPurple, size: 24),
       );
-    } else if (otherUser?.profilePic != null) {
-      // User with profile pic
+    } else if (otherUser != null) {
+      // User avatar - try Supabase storage URL first
+      final String supabaseProfileImageUrl =
+          'https://frjdhtasvvyutekzmfgb.supabase.co/storage/v1/object/public/profile/${otherUser.id}.jpg';
+
       return CircleAvatar(
         radius: 24,
-        backgroundImage: NetworkImage(otherUser!.profilePic!),
+        backgroundColor: AppTheme.primaryPurple.withOpacity(0.2),
+        child: ClipOval(
+          child: CachedNetworkImage(
+            imageUrl: supabaseProfileImageUrl,
+            fit: BoxFit.cover,
+            placeholder:
+                (context, url) => Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppTheme.primaryPurple,
+                    ),
+                    strokeWidth: 2.0,
+                  ),
+                ),
+            errorWidget: (context, url, error) {
+              print('Error loading chat avatar from $url: $error');
+              // Fall back to the profilePic property if available
+              if (otherUser.profilePic != null) {
+                return Image.network(
+                  otherUser.profilePic!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Text(
+                      _getInitials(otherUser.name),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  },
+                );
+              } else {
+                return Text(
+                  _getInitials(otherUser.name),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }
+            },
+          ),
+        ),
       );
     } else {
-      // User without profile pic - use initials or default
+      // User without profile data - use initials or default
       final name = thread.name ?? 'U';
 
       return CircleAvatar(

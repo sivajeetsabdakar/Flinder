@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../models/auth_response.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class AuthProvider with ChangeNotifier {
   User? _user;
@@ -23,46 +25,64 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      print('AuthProvider - Initializing');
+
       // Check if user is logged in
       final isAuth = await AuthService.isAuthenticated();
       if (isAuth) {
-        final userModel = await AuthService.getCurrentUser();
-        _user = userModel != null ? User.fromUserModel(userModel) : null;
-
-        // Check if this is a development hot reload - maintain the profile completion status
-        // This prevents redirecting to profile completion after hot reload
-        if (_user != null && !(_user!.profileCompleted)) {
-          // Only check local storage again if profile is not completed in memory
-          try {
-            final storedCompleted =
-                await AuthService.getProfileCompletionStatus();
-            if (storedCompleted) {
-              // Create a new User instance with updated profile completion status
-              _user = User(
-                id: _user!.id,
-                email: _user!.email,
-                name: _user!.name,
-                profileCompleted: true,
-                onlineStatus: _user!.onlineStatus,
-                lastOnline: _user!.lastOnline,
-                createdAt: _user!.createdAt,
-                verificationStatus: _user!.verificationStatus,
-              );
-              print(
-                'Auth Provider: Restored profile completion status from storage',
-              );
-            }
-          } catch (e) {
-            print('Auth Provider: Error checking stored profile status: $e');
+        // Try to read directly from SharedPreferences first for more reliable persistence
+        bool profileCompletedFromPrefs = false;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final userJson = prefs.getString('user');
+          if (userJson != null) {
+            final userData = jsonDecode(userJson);
+            profileCompletedFromPrefs = userData['isProfileCompleted'] ?? false;
+            print(
+              'AuthProvider - Profile completion from SharedPreferences: $profileCompletedFromPrefs',
+            );
           }
+        } catch (e) {
+          print('AuthProvider - Error reading from SharedPreferences: $e');
         }
+
+        // Get user model
+        final userModel = await AuthService.getCurrentUser();
+        if (userModel != null) {
+          // Create User from UserModel, ensuring profile completion status is consistent
+          if (profileCompletedFromPrefs &&
+              userModel.isProfileCompleted != true) {
+            // Update the UserModel if SharedPreferences has it as completed
+            userModel.isProfileCompleted = true;
+
+            // Save back the updated status
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('user', jsonEncode(userModel.toJson()));
+              print(
+                'AuthProvider - Updated UserModel in SharedPreferences with completed status',
+              );
+            } catch (e) {
+              print('AuthProvider - Error updating SharedPreferences: $e');
+            }
+          }
+
+          _user = User.fromUserModel(userModel);
+          print(
+            'AuthProvider - User logged in: ${_user?.email}, profileCompleted: ${_user?.profileCompleted}',
+          );
+        }
+      } else {
+        print('AuthProvider - No user authenticated');
       }
     } catch (e) {
       _error = e.toString();
+      print('AuthProvider - Error during initialization: $_error');
     } finally {
       _isLoading = false;
       _isInitialized = true;
       notifyListeners();
+      print('AuthProvider - Initialization complete');
     }
   }
 

@@ -17,6 +17,8 @@ import '../screens/discovery/liked_you_screen.dart';
 import '../screens/chat/chat_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/discovery/flat_detail_screen.dart';
+import '../screens/discovery/flats_screen.dart';
+import '../screens/profile/my_applications_screen.dart';
 import '../models/user_profile.dart';
 
 class AppRouter {
@@ -36,6 +38,8 @@ class AppRouter {
   static const String profileCompletionRoute = '/profile-completion';
   static const String editProfileRoute = '/edit-profile';
   static const String flatDetailRoute = '/flat-detail';
+  static const String flatsScreenRoute = '/flats';
+  static const String myApplicationsRoute = '/my-applications';
 
   // Tab indices
   static const int profileTab = 0;
@@ -98,6 +102,10 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => FlatDetailScreen(flatId: flatId),
         );
+      case flatsScreenRoute:
+        return MaterialPageRoute(builder: (_) => const FlatsScreen());
+      case myApplicationsRoute:
+        return MaterialPageRoute(builder: (_) => const MyApplicationsScreen());
       // Other routes will be added here as they are implemented
       default:
         return MaterialPageRoute(
@@ -172,6 +180,11 @@ class AppRouter {
     Navigator.pushNamed(context, flatDetailRoute, arguments: flatId);
   }
 
+  // Navigation helper for flats screen
+  static void navigateToFlats(BuildContext context) {
+    Navigator.pushNamed(context, flatsScreenRoute);
+  }
+
   static void navigateToLikedYouTab(BuildContext context) {
     Navigator.pushNamedAndRemoveUntil(
       context,
@@ -179,5 +192,10 @@ class AppRouter {
       (Route<dynamic> route) => false,
       arguments: likedYouTab,
     );
+  }
+
+  // Navigation helper for my applications screen
+  static void navigateToMyApplications(BuildContext context) {
+    Navigator.pushNamed(context, myApplicationsRoute);
   }
 }
