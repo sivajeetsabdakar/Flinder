@@ -1,6 +1,13 @@
 System Architecture 
+![Screenshot 2025-04-07 162714](https://github.com/user-attachments/assets/bd9448f9-29b0-4265-9891-799a32c70d74)
+![Screenshot 2025-04-07 162614](https://github.com/user-attachments/assets/ad89142d-2b34-4bb0-84d2-2032d4511a2c)
+![Screenshot 2025-04-07 162555](https://github.com/user-attachments/assets/f654b107-9a3e-43a4-a613-69ec5f645029)
 
 ![image](https://github.com/user-attachments/assets/e4004ceb-b8e3-4947-baa6-ac0648be05dd)
+
+
+https://github.com/user-attachments/assets/53cc70b4-577d-4c13-b93f-bc47d6ee781a
+
 
 
 
