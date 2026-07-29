@@ -26,6 +26,9 @@ if (Test-Path $target) {
 New-Item -ItemType Directory -Path $target | Out-Null
 Copy-Item -Path (Join-Path $backendRoot "app") -Destination (Join-Path $target "app") -Recurse
 Copy-Item -Path (Join-Path $backendRoot "scripts") -Destination (Join-Path $target "scripts") -Recurse
+Get-ChildItem -LiteralPath $target -Directory -Recurse -Force |
+    Where-Object { $_.Name -eq "__pycache__" } |
+    Remove-Item -Recurse -Force
 
 @'
 ---
