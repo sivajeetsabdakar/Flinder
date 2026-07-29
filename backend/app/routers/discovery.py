@@ -13,6 +13,7 @@ from ..serializers import profile_to_client
 from ..services.discovery import score_profile
 from ..services.notifications import create_notification
 from ..services.semantic_matching import semantic_similarity
+from ..services.swipe_learning import build_swipe_preference_model, swipe_learning_score
 
 router = APIRouter(prefix="/api/discover", tags=["discovery"])
 
@@ -44,10 +45,12 @@ def discover(current_user: User = Depends(get_current_user), db: Session = Depen
         select(UserEmbedding).where(UserEmbedding.user_id.in_([current_user.id, *[profile.user_id for profile in profiles]]))
     ).all()
     embeddings = {row.user_id: row for row in embedding_rows}
+    swipe_model = build_swipe_preference_model(db, current_user.id)
     scored = []
     for profile in profiles:
         semantic = semantic_similarity(embeddings.get(current_user.id), embeddings.get(profile.user_id))
-        scoring = score_profile(current_profile, profile, profile.user, semantic)
+        learned = swipe_learning_score(swipe_model, embeddings.get(profile.user_id))
+        scoring = score_profile(current_profile, profile, profile.user, semantic, learned)
         boost = 30 if profile.user_id in active_boosts else 0
         data = profile_to_client(profile, profile.user)
         data["compatibility"] = {
@@ -58,6 +61,11 @@ def discover(current_user: User = Depends(get_current_user), db: Session = Depen
                 "available": semantic["available"],
                 "categoryScores": semantic.get("categoryScores", {}),
                 "conflictPenalty": semantic.get("conflictPenalty", 0),
+            },
+            "learnedPreference": {
+                "available": learned["available"],
+                "score": learned["score"],
+                "confidence": learned.get("confidence", 0),
             },
         }
         scored.append(data)

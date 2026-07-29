@@ -12,6 +12,7 @@ from app.main import app
 from app.models import UserEmbedding
 from app.services.discovery import score_profile
 from app.services.semantic_matching import build_canonical_texts, cosine_similarity, parse_llm_traits, semantic_similarity
+from app.services.swipe_learning import swipe_learning_score
 
 
 def test_photo_upload_requires_auth():
@@ -119,6 +120,43 @@ def test_canonical_text_builder_handles_sparse_profile_fields():
 
 def test_cosine_similarity_handles_close_and_unrelated_vectors():
     assert cosine_similarity([1, 0], [0.9, 0.1]) > cosine_similarity([1, 0], [0, 1])
+
+
+def test_swipe_learning_prefers_profiles_close_to_liked_history():
+    model = {
+        "available": True,
+        "likeCount": 8,
+        "passCount": 4,
+        "vectors": {
+            "interests": [1.0, 0.0],
+            "personality": [1.0, 0.0],
+        },
+    }
+    close = UserEmbedding(status="ready", embedding_interests=[0.95, 0.05], embedding_personality=[0.9, 0.1])
+    far = UserEmbedding(status="ready", embedding_interests=[0.0, 1.0], embedding_personality=[0.0, 1.0])
+
+    assert swipe_learning_score(model, close)["score"] > swipe_learning_score(model, far)["score"]
+
+
+def test_discovery_score_includes_learned_preference_signal():
+    class ProfileStub:
+        city = ""
+        location = {}
+        budget = {}
+        room_preference = "private"
+        languages = []
+
+    class UserStub:
+        last_active = None
+
+    result = score_profile(
+        ProfileStub(),
+        ProfileStub(),
+        UserStub(),
+        learned={"available": True, "score": 7},
+    )
+
+    assert result["reasons"]["learnedPreference"] == 7
 
 
 def test_internal_ml_rebuild_requires_worker_token():

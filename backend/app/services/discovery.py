@@ -17,6 +17,7 @@ def score_profile(
     candidate: Profile,
     candidate_user: User,
     semantic: dict[str, Any] | None = None,
+    learned: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     score = 0
     reasons: dict[str, int] = {}
@@ -27,6 +28,12 @@ def score_profile(
         semantic_points = int(semantic.get("score", 0))
         reasons["semanticCompatibility"] = semantic_points
         score += semantic_points
+
+    if learned and learned.get("available"):
+        learned_points = int(learned.get("score", 0))
+        if learned_points:
+            reasons["learnedPreference"] = learned_points
+            score += learned_points
 
     current_city = (current.city or current.location.get("city") or "").lower()
     candidate_city = (candidate.city or candidate.location.get("city") or "").lower()
