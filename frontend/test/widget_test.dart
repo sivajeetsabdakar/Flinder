@@ -33,6 +33,10 @@ void main() {
     expect(find.text('Home basics'), findsOneWidget);
     expect(find.text('Where should we place you?'), findsOneWidget);
     expect(find.text('Room type'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -260));
+    await tester.pumpAndSettle();
+
     expect(find.text('Budget'), findsOneWidget);
     expect(find.byType(ChoiceChip), findsWidgets);
   });

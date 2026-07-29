@@ -77,11 +77,8 @@ class SocialButton extends StatelessWidget {
                     const SizedBox(width: 12),
                     Text(
                       text,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      style: AppTheme.buttonTextStyle.copyWith(
                         color: textColor,
-                        fontFamily: 'Poppins',
                       ),
                     ),
                   ],

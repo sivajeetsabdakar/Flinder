@@ -202,7 +202,22 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                   icon: const Icon(Icons.arrow_back),
                   onPressed: _back,
                 ),
-        title: Text(_titles[_step], style: AppTheme.subheadingStyle),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/logos/flinder_mark.png',
+                width: 30,
+                height: 30,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(_titles[_step], style: AppTheme.subheadingStyle),
+          ],
+        ),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -292,9 +307,9 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     required List<Widget> children,
   }) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 140),
       children: [
-        Text(title, style: AppTheme.headingStyle.copyWith(fontSize: 26)),
+        Text(title, style: AppTheme.headingStyle.copyWith(fontSize: 24)),
         const SizedBox(height: 8),
         Text(
           subtitle,
@@ -626,6 +641,8 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                   backgroundColor: AppTheme.darkGrey,
                   labelStyle: TextStyle(
                     color: selected ? Colors.white : AppTheme.lightGrey,
+                    fontSize: 13,
+                    height: 1.15,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
                   side: BorderSide(
@@ -686,6 +703,8 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                   backgroundColor: AppTheme.darkGrey,
                   labelStyle: TextStyle(
                     color: isSelected ? Colors.white : AppTheme.lightGrey,
+                    fontSize: 13,
+                    height: 1.15,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
                   side: BorderSide(

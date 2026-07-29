@@ -47,6 +47,7 @@ dependencies:
   connectivity_plus: ^7.0.0
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
+  google_fonts: ^8.2.0
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +74,7 @@ flutter:
   assets:
     - assets/logos/Circle_Logo.png
     - assets/logos/Square_Logo.jpg
+    - assets/logos/flinder_mark.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

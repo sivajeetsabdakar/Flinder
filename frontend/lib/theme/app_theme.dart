@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Primary colors
@@ -29,31 +30,31 @@ class AppTheme {
   );
 
   // Text styles
-  static const TextStyle headingStyle = TextStyle(
-    fontFamily: 'Poppins',
+  static TextStyle get headingStyle => GoogleFonts.plusJakartaSans(
     fontWeight: FontWeight.w700,
-    fontSize: 28,
+    fontSize: 30,
+    height: 1.12,
     color: Colors.white,
   );
 
-  static const TextStyle subheadingStyle = TextStyle(
-    fontFamily: 'Poppins',
+  static TextStyle get subheadingStyle => GoogleFonts.plusJakartaSans(
     fontWeight: FontWeight.w600,
     fontSize: 18,
+    height: 1.2,
     color: Colors.white,
   );
 
-  static const TextStyle bodyStyle = TextStyle(
-    fontFamily: 'Poppins',
+  static TextStyle get bodyStyle => GoogleFonts.plusJakartaSans(
     fontWeight: FontWeight.w400,
-    fontSize: 16,
+    fontSize: 15,
+    height: 1.45,
     color: Colors.white,
   );
 
-  static const TextStyle buttonTextStyle = TextStyle(
-    fontFamily: 'Poppins',
+  static TextStyle get buttonTextStyle => GoogleFonts.plusJakartaSans(
     fontWeight: FontWeight.w600,
-    fontSize: 16,
+    fontSize: 15,
+    height: 1.2,
     color: Colors.white,
   );
 
@@ -129,13 +130,38 @@ class AppTheme {
       background: darkBackground,
       surface: darkGrey,
     ),
-    fontFamily: 'Poppins',
+    fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
     textTheme: const TextTheme(
-      displayLarge: headingStyle,
-      displayMedium: subheadingStyle,
-      bodyLarge: bodyStyle,
-      bodyMedium: bodyStyle,
-      labelLarge: buttonTextStyle,
+      displayLarge: TextStyle(
+        fontWeight: FontWeight.w700,
+        fontSize: 30,
+        height: 1.12,
+        color: Colors.white,
+      ),
+      displayMedium: TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 18,
+        height: 1.2,
+        color: Colors.white,
+      ),
+      bodyLarge: TextStyle(
+        fontWeight: FontWeight.w400,
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.white,
+      ),
+      bodyMedium: TextStyle(
+        fontWeight: FontWeight.w400,
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.white,
+      ),
+      labelLarge: TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 15,
+        height: 1.2,
+        color: Colors.white,
+      ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(style: primaryButtonStyle),
     outlinedButtonTheme: OutlinedButtonThemeData(style: secondaryButtonStyle),

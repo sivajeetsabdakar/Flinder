@@ -38,9 +38,7 @@ class FlinderLogo extends StatelessWidget {
                     ? BorderRadius.circular(size / 2)
                     : BorderRadius.circular(16),
             child: Image.asset(
-              isCircular
-                  ? 'assets/logos/Circle_Logo.png'
-                  : 'assets/logos/Square_Logo.jpg',
+              'assets/logos/flinder_mark.png',
               fit: BoxFit.cover,
             ),
           ),
@@ -54,16 +52,18 @@ class FlinderLogo extends StatelessWidget {
                   text: 'Flinder',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: size * 0.4,
-                    fontWeight: FontWeight.bold,
+                    fontSize: size * 0.34,
+                    fontWeight: FontWeight.w800,
+                    height: 1.05,
                   ),
                 ),
                 TextSpan(
                   text: '.',
                   style: TextStyle(
-                    color: AppTheme.primaryPurple,
-                    fontSize: size * 0.4,
-                    fontWeight: FontWeight.bold,
+                    color: AppTheme.accentPink,
+                    fontSize: size * 0.34,
+                    fontWeight: FontWeight.w800,
+                    height: 1.05,
                   ),
                 ),
               ],
@@ -74,7 +74,9 @@ class FlinderLogo extends StatelessWidget {
             'Find your perfect flatmate',
             style: TextStyle(
               color: Colors.white.withOpacity(0.7),
-              fontSize: size * 0.2,
+              fontSize: size * 0.14,
+              height: 1.2,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
