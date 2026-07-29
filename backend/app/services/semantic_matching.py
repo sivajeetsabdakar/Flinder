@@ -27,6 +27,18 @@ CATEGORY_WEIGHTS = {
 CONFLICT_WEIGHT = 0.18
 _model = None
 
+try:
+    import spaces
+except ImportError:
+    class _SpacesFallback:
+        @staticmethod
+        def GPU(*args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+
+    spaces = _SpacesFallback()
+
 
 def _flatten(value: Any) -> str:
     if value is None:
@@ -248,6 +260,12 @@ def _load_model():
     return _model
 
 
+@spaces.GPU(duration=60)
+def _encode_texts(texts: list[str]):
+    model = _load_model()
+    return model.encode(texts, normalize_embeddings=True)
+
+
 def rebuild_user_embedding(db: Session, user_id: uuid.UUID) -> UserEmbedding:
     profile = db.get(Profile, user_id)
     if not profile:
@@ -264,8 +282,7 @@ def rebuild_user_embedding(db: Session, user_id: uuid.UUID) -> UserEmbedding:
 
     texts = build_canonical_texts(profile, preference, llm_traits if "_error" not in llm_traits else {})
     try:
-        model = _load_model()
-        vectors = model.encode([texts[category] for category in CATEGORIES], normalize_embeddings=True)
+        vectors = _encode_texts([texts[category] for category in CATEGORIES])
         for category, vector in zip(CATEGORIES, vectors):
             setattr(row, f"embedding_{category}", [float(value) for value in vector.tolist()])
         row.model_name = get_settings().semantic_model_name
