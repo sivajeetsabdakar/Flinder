@@ -7,11 +7,12 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import Boost, Match, Profile, Swipe, SwipeRewind, User, UserBlock
+from ..models import Boost, Match, Profile, Swipe, SwipeRewind, User, UserBlock, UserEmbedding
 from ..schemas import SwipeRequest
 from ..serializers import profile_to_client
 from ..services.discovery import score_profile
 from ..services.notifications import create_notification
+from ..services.semantic_matching import semantic_similarity
 
 router = APIRouter(prefix="/api/discover", tags=["discovery"])
 
@@ -39,12 +40,26 @@ def discover(current_user: User = Depends(get_current_user), db: Session = Depen
             select(Boost).where(Boost.is_active.is_(True), Boost.expires_at > datetime.now(timezone.utc))
         ).all()
     }
+    embedding_rows = db.scalars(
+        select(UserEmbedding).where(UserEmbedding.user_id.in_([current_user.id, *[profile.user_id for profile in profiles]]))
+    ).all()
+    embeddings = {row.user_id: row for row in embedding_rows}
     scored = []
     for profile in profiles:
-        scoring = score_profile(current_profile, profile, profile.user)
+        semantic = semantic_similarity(embeddings.get(current_user.id), embeddings.get(profile.user_id))
+        scoring = score_profile(current_profile, profile, profile.user, semantic)
         boost = 30 if profile.user_id in active_boosts else 0
         data = profile_to_client(profile, profile.user)
-        data["compatibility"] = {"score": scoring["score"] + boost, "reasons": scoring["reasons"], "boosted": bool(boost)}
+        data["compatibility"] = {
+            "score": scoring["score"] + boost,
+            "reasons": scoring["reasons"],
+            "boosted": bool(boost),
+            "semantic": {
+                "available": semantic["available"],
+                "categoryScores": semantic.get("categoryScores", {}),
+                "conflictPenalty": semantic.get("conflictPenalty", 0),
+            },
+        }
         scored.append(data)
     scored.sort(key=lambda item: item["compatibility"]["score"], reverse=True)
     return {"success": True, "profiles": scored[:25]}

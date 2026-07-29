@@ -9,6 +9,7 @@ from ..deps import get_current_user
 from ..models import Boost, Profile, ProfilePicture, User
 from ..schemas import PictureRequest, ProfileRequest
 from ..serializers import picture_to_client, profile_to_client
+from ..services.semantic_matching import mark_embedding_stale, trigger_embedding_rebuild
 from ..services.storage import delete_object_by_url, upload_profile_image
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
@@ -82,8 +83,10 @@ def update_profile(
     profile.onboarding_step = step
     current_user.profile_completed = score >= 70
     db.add(profile)
+    mark_embedding_stale(db, current_user.id)
     db.commit()
     db.refresh(profile)
+    trigger_embedding_rebuild(current_user.id)
     return {"success": True, "message": "Profile updated successfully", "profile": profile_to_client(profile, current_user)}
 
 

@@ -4,6 +4,7 @@ os.environ["APP_ENV"] = "testing"
 os.environ["DATABASE_URL"] = "postgresql+psycopg://user:pass@localhost/db"
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["GOOGLE_OAUTH_CLIENT_ID"] = "dummy.apps.googleusercontent.com"
+os.environ["ML_WORKER_TOKEN"] = "test-worker-token"
 
 from fastapi.testclient import TestClient
 

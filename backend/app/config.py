@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     firebase_credentials_path: str = ""
     nominatim_user_agent: str = "Flinder/1.0"
     admin_emails: str = ""
+    ai_text_api_base_url: str = ""
+    ai_text_api_token: str = ""
+    ml_worker_url: str = ""
+    ml_worker_token: str = ""
+    semantic_model_name: str = "all-MiniLM-L6-v2"
+    semantic_matching_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

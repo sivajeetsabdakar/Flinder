@@ -23,6 +23,11 @@ GOOGLE_OAUTH_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
 CORS_ORIGINS=https://your-frontend-domain
 TRUSTED_HOSTS=your-api-domain,<oci-public-ip>
 AUTH_RATE_LIMIT_PER_MINUTE=20
+AI_TEXT_API_BASE_URL=https://your-ai-text-api.example.com/dev
+AI_TEXT_API_TOKEN=your-ai-token
+ML_WORKER_TOKEN=generate-a-long-random-token
+ML_WORKER_URL=
+SEMANTIC_MATCHING_ENABLED=true
 ```
 
 Do not commit `.env`. The deploy script uploads it directly to the VM.
@@ -70,6 +75,31 @@ To target a different OCI instance:
 ```
 
 The script uses OCI CLI to discover the VM public IP, uploads `backend/`, `database/`, and `backend/.env`, builds the Docker image on the VM, restarts the `flinder-backend` container, and leaves it running on port `8000`.
+
+## Semantic Matching Worker
+
+Semantic embeddings are intentionally not generated in the main API container. The current Always Free E2 micro VM is too small for `sentence-transformers`.
+
+When OCI Ampere A1 capacity is available, create a separate `VM.Standard.A1.Flex` worker and deploy the same app with `backend/Dockerfile.ml`. The worker image installs `requirements-ml.txt` and exposes protected internal routes:
+
+```text
+GET  /internal/ml/health
+POST /internal/ml/profiles/{user_id}/rebuild
+POST /internal/ml/profiles/rebuild-missing
+```
+
+Set `ML_WORKER_URL` on the API VM to the worker URL and use the same `ML_WORKER_TOKEN` on both containers. Keep `AI_TEXT_API_TOKEN` only in `.env`; never commit it.
+
+Example worker deploy once the A1 VM exists:
+
+```powershell
+.\backend\scripts\deploy_oci.ps1 `
+  -HostName <worker-public-or-private-ip> `
+  -SshKeyPath C:\path\to\oci_private_key `
+  -ImageName flinder-ml-worker `
+  -DockerfileName Dockerfile.ml `
+  -Port 8000
+```
 
 ## Verify
 

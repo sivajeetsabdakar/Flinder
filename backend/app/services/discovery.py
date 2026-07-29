@@ -12,45 +12,46 @@ def _budget_overlap(a: dict[str, Any], b: dict[str, Any]) -> bool:
     return max(a_min, b_min) <= min(a_max, b_max)
 
 
-def score_profile(current: Profile | None, candidate: Profile, candidate_user: User) -> dict[str, Any]:
+def score_profile(
+    current: Profile | None,
+    candidate: Profile,
+    candidate_user: User,
+    semantic: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     score = 0
     reasons: dict[str, int] = {}
     if not current:
         return {"score": 0, "reasons": reasons}
 
+    if semantic and semantic.get("available"):
+        semantic_points = int(semantic.get("score", 0))
+        reasons["semanticCompatibility"] = semantic_points
+        score += semantic_points
+
     current_city = (current.city or current.location.get("city") or "").lower()
     candidate_city = (candidate.city or candidate.location.get("city") or "").lower()
     if current_city and current_city == candidate_city:
-        reasons["city"] = 25
-        score += 25
+        reasons["city"] = 15
+        score += 15
 
     if _budget_overlap(current.budget or {}, candidate.budget or {}):
-        reasons["budget"] = 20
-        score += 20
+        reasons["budget"] = 12
+        score += 12
 
     if current.room_preference == candidate.room_preference or current.room_preference == "any":
-        reasons["roomPreference"] = 10
-        score += 10
-
-    shared_interests = set(current.interests or []) & set(candidate.interests or [])
-    if shared_interests:
-        points = min(15, len(shared_interests) * 3)
-        reasons["interests"] = points
-        score += points
+        reasons["roomPreference"] = 6
+        score += 6
 
     shared_languages = set(current.languages or []) & set(candidate.languages or [])
     if shared_languages:
         reasons["languages"] = 5
         score += 5
 
-    lifestyle_matches = 0
-    for key, value in (current.lifestyle or {}).items():
-        if (candidate.lifestyle or {}).get(key) == value:
-            lifestyle_matches += 1
-    if lifestyle_matches:
-        points = min(15, lifestyle_matches * 3)
-        reasons["lifestyle"] = points
-        score += points
+    current_move_in = getattr(current, "move_in_date", None)
+    candidate_move_in = getattr(candidate, "move_in_date", None)
+    if current_move_in and candidate_move_in and current_move_in == candidate_move_in:
+        reasons["moveInTiming"] = 4
+        score += 4
 
     if candidate_user.last_active:
         days = (datetime.now(timezone.utc) - candidate_user.last_active).days

@@ -11,6 +11,7 @@ param(
   [string]$RemoteDir = "/home/ubuntu/flinder",
   [string]$EnvFile = "backend/.env",
   [string]$ImageName = "flinder-backend",
+  [string]$DockerfileName = "Dockerfile",
   [int]$Port = 8000,
   [switch]$ApplyMigrations,
   [switch]$ResolveOnly
@@ -183,7 +184,7 @@ try {
     "cd $RemoteDir",
     "tar -xzf flinder-backend.tgz",
     "cp .env backend/.env",
-    "docker build -t ${ImageName}:latest backend",
+    "docker build -f backend/$DockerfileName -t ${ImageName}:latest backend",
     "docker rm -f $ImageName >/dev/null 2>&1 || true"
   )
 

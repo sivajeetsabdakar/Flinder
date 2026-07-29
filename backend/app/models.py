@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, foreign, mapped_column, relationship
 
@@ -79,6 +79,27 @@ class Preference(Base):
     non_critical: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     discovery_settings: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     interests: Mapped[Any] = mapped_column(JSONB, default=list)
+
+
+class UserEmbedding(Base):
+    __tablename__ = "user_embeds"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    embedding_hobbies: Mapped[list[float] | None] = mapped_column(ARRAY(Float))
+    embedding_interests: Mapped[list[float] | None] = mapped_column(ARRAY(Float))
+    embedding_traits: Mapped[list[float] | None] = mapped_column(ARRAY(Float))
+    embedding_personality: Mapped[list[float] | None] = mapped_column(ARRAY(Float))
+    embedding_likes: Mapped[list[float] | None] = mapped_column(ARRAY(Float))
+    embedding_dislikes: Mapped[list[float] | None] = mapped_column(ARRAY(Float))
+    model_name: Mapped[str | None] = mapped_column(Text)
+    source_hash: Mapped[str | None] = mapped_column(Text)
+    llm_traits: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    canonical_text: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    status: Mapped[str] = mapped_column(Text, default="missing")
+    error: Mapped[str | None] = mapped_column(Text)
+    last_embedded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Swipe(Base):

@@ -7,6 +7,7 @@ from ..deps import get_current_user
 from ..models import Preference, User
 from ..schemas import PreferencesRequest
 from ..serializers import preference_to_client
+from ..services.semantic_matching import mark_embedding_stale, trigger_embedding_rebuild
 
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])
 
@@ -33,6 +34,8 @@ def update_preferences(
     preference.discovery_settings = payload.discoverySettings
     preference.interests = payload.interests
     db.add(preference)
+    mark_embedding_stale(db, current_user.id)
     db.commit()
     db.refresh(preference)
+    trigger_embedding_rebuild(current_user.id)
     return {"success": True, "message": "Preferences updated successfully", "preferences": preference_to_client(preference)}
