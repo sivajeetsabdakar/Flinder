@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .middleware import InMemoryRateLimitMiddleware, RequestContextMiddleware
-from .routers import admin, auth, conversations, devices, discovery, flats, health, internal_ml, location, notifications, preferences, profile, safety, swipes, users
+from .routers import health, internal_ml
 
 settings = get_settings()
 
@@ -37,6 +37,8 @@ app.include_router(internal_ml.router)
 app.include_router(health.router)
 
 if not settings.worker_only:
+    from .routers import admin, auth, conversations, devices, discovery, flats, location, notifications, preferences, profile, safety, swipes, users
+
     app.include_router(auth.router)
     app.include_router(profile.router)
     app.include_router(preferences.router)

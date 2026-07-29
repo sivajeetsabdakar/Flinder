@@ -66,8 +66,15 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ["PORT"]))
 '@ | Set-Content -Path (Join-Path $target "app.py") -Encoding utf8
 
-$baseRequirements = Get-Content (Join-Path $backendRoot "requirements.txt")
-$spaceRequirements = @($baseRequirements) + @(
+$spaceRequirements = @(
+    "fastapi==0.116.1",
+    "uvicorn[standard]==0.35.0",
+    "sqlalchemy==2.0.43",
+    "psycopg[binary]==3.2.9",
+    "python-dotenv==1.1.1",
+    "pydantic-settings==2.10.1",
+    "httpx==0.28.1",
+    "python-multipart==0.0.21",
     "numpy==2.2.6",
     "sentence-transformers==3.4.1",
     "gradio==5.38.2"
