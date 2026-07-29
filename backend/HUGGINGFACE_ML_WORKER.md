@@ -28,10 +28,11 @@ Push the generated `dist/huggingface-ml-worker` folder contents to that Space re
 Or run:
 
 ```powershell
+.\backend\scripts\save_huggingface_token.ps1
 .\backend\scripts\push_huggingface_worker.ps1
 ```
 
-The script prompts for a Hugging Face write token in your terminal and does not commit it.
+The save script prompts for a Hugging Face write token in your terminal and stores it as the Windows user environment variable `HF_TOKEN`. The push script reads `HF_TOKEN` automatically and does not commit it.
 
 ## Space Secrets
 

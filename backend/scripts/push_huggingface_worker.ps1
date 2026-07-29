@@ -19,10 +19,14 @@ if (-not ([System.IO.Path]::GetFullPath($work).StartsWith([System.IO.Path]::GetF
     throw "WorkPath must be under $distRoot"
 }
 
-$tokenSecure = Read-Host "Paste Hugging Face write token" -AsSecureString
-$tokenPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($tokenSecure)
-$token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($tokenPtr)
-[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($tokenPtr)
+$token = $env:HF_TOKEN
+
+if (-not $token) {
+    $tokenSecure = Read-Host "Paste Hugging Face write token" -AsSecureString
+    $tokenPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($tokenSecure)
+    $token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($tokenPtr)
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($tokenPtr)
+}
 
 if (-not $token) {
     throw "No token provided"
@@ -34,6 +38,7 @@ if (Test-Path $work) {
 
 $remote = $SpaceUrl -replace "^https://", "https://SivajeetSabdakar:$token@"
 git clone $remote $work
+git -C $work remote set-url origin $SpaceUrl
 
 Get-ChildItem -LiteralPath $work -Force |
     Where-Object { $_.Name -ne ".git" } |
@@ -44,5 +49,6 @@ Copy-Item -Path (Join-Path $source "*") -Destination $work -Recurse -Force
 git -C $work add .
 git -C $work commit -m "Deploy Flinder ML worker"
 git -C $work push origin main
+git -C $work remote set-url origin $SpaceUrl
 
 Write-Host "Pushed ML worker to $SpaceUrl"
