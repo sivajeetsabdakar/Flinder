@@ -53,6 +53,8 @@ Protected endpoints require `X-ML-Worker-Token`.
 @'
 import os
 
+import gradio as gr
+import spaces
 import uvicorn
 
 os.environ.setdefault("APP_ENV", "worker")
@@ -60,6 +62,20 @@ os.environ.setdefault("WORKER_ONLY", "true")
 os.environ.setdefault("PORT", "7860")
 
 from app.main import app  # noqa: E402
+
+
+@spaces.GPU(duration=1)
+def zero_gpu_probe():
+    return "Flinder ML worker is ready"
+
+
+demo = gr.Interface(
+    fn=zero_gpu_probe,
+    inputs=None,
+    outputs=gr.Textbox(label="Status"),
+    title="Flinder ML Worker",
+)
+app = gr.mount_gradio_app(app, demo, path="/ui")
 
 
 if __name__ == "__main__":
