@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     ai_text_api_token: str = ""
     ml_worker_url: str = ""
     ml_worker_token: str = ""
+    worker_only: bool = False
     semantic_model_name: str = "all-MiniLM-L6-v2"
     semantic_matching_enabled: bool = True
 

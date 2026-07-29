@@ -19,3 +19,23 @@ def test_health_endpoint():
     assert response.json() == {"status": "ok", "service": "flinder-backend"}
     assert response.headers["x-request-id"]
     assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_worker_only_app_exposes_internal_ml_without_public_routes(monkeypatch):
+    from app.config import get_settings
+    import app.main as main_module
+    from importlib import reload
+
+    monkeypatch.setenv("WORKER_ONLY", "true")
+    get_settings.cache_clear()
+
+    worker_main = reload(main_module)
+    client = TestClient(worker_main.app)
+
+    assert client.get("/internal/ml/health").status_code == 200
+    assert client.get("/api/health").status_code == 200
+    assert client.get("/api/profile").status_code == 404
+
+    monkeypatch.setenv("WORKER_ONLY", "false")
+    get_settings.cache_clear()
+    reload(main_module)
