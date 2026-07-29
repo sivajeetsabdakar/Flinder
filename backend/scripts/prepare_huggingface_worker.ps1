@@ -144,6 +144,7 @@ $spaceRequirements = @(
     "httpx==0.28.1",
     "numpy==2.2.6",
     "sentence-transformers==3.4.1",
+    "sse-starlette==3.3.3",
     "gradio==5.38.2"
 )
 $spaceRequirements | Set-Content -Path (Join-Path $target "requirements.txt") -Encoding utf8
