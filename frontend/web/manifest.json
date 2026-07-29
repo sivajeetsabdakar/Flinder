@@ -1,11 +1,11 @@
 {
-    "name": "flinder_flutter",
-    "short_name": "flinder_flutter",
+    "name": "Flinder",
+    "short_name": "Flinder",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#121212",
+    "theme_color": "#121212",
+    "description": "Swipe to find compatible flatmates and rooms.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

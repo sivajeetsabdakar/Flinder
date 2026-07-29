@@ -149,6 +149,10 @@ class AuthService {
     try {
       final googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
+        clientId:
+            ApiConstants.googleWebClientId.isEmpty
+                ? null
+                : ApiConstants.googleWebClientId,
         serverClientId:
             ApiConstants.googleWebClientId.isEmpty
                 ? null

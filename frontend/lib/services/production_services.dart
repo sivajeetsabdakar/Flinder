@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -14,7 +14,10 @@ class ProductionServices {
   static Future<Map<String, String>?> _headers({bool json = false}) async {
     final token = await AuthService.getAuthToken();
     if (token == null) return null;
-    return {if (json) 'Content-Type': 'application/json', 'Authorization': token};
+    return {
+      if (json) 'Content-Type': 'application/json',
+      'Authorization': token,
+    };
   }
 
   static Future<bool> isOnline() async {
@@ -34,7 +37,17 @@ class ProductionServices {
     );
     final request = http.MultipartRequest('POST', uri);
     request.headers['Authorization'] = token;
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    if (kIsWeb) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          await file.readAsBytes(),
+          filename: file.name,
+        ),
+      );
+    } else {
+      request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    }
     final response = await request.send();
     final body = await response.stream.bytesToString();
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -45,7 +58,12 @@ class ProductionServices {
 
   static Future<void> initializePush() async {
     try {
-      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) return;
+      if (kIsWeb ||
+          defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS) {
+        return;
+      }
       await Firebase.initializeApp();
       final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission();
@@ -67,15 +85,21 @@ class ProductionServices {
     final userId = await AuthService.getCurrentUserId();
     final deviceId = userId == null ? 'flutter-device' : 'flutter-$userId';
     final platform =
-        Platform.isAndroid
+        kIsWeb
+            ? 'web'
+            : defaultTargetPlatform == TargetPlatform.android
             ? 'android'
-            : Platform.isIOS
-                ? 'ios'
-                : 'web';
+            : defaultTargetPlatform == TargetPlatform.iOS
+            ? 'ios'
+            : 'desktop';
     await http.post(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.devicesEndpoint}'),
       headers: headers,
-      body: jsonEncode({'deviceId': deviceId, 'pushToken': pushToken, 'platform': platform}),
+      body: jsonEncode({
+        'deviceId': deviceId,
+        'pushToken': pushToken,
+        'platform': platform,
+      }),
     );
   }
 
@@ -90,13 +114,21 @@ class ProductionServices {
     return (jsonDecode(response.body)['notifications'] as List?) ?? [];
   }
 
-  static Future<bool> reportUser(String userId, String reason, {String? details}) async {
+  static Future<bool> reportUser(
+    String userId,
+    String reason, {
+    String? details,
+  }) async {
     final headers = await _headers(json: true);
     if (headers == null) return false;
     final response = await http.post(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.reportsEndpoint}'),
       headers: headers,
-      body: jsonEncode({'userId': userId, 'reason': reason, if (details != null) 'details': details}),
+      body: jsonEncode({
+        'userId': userId,
+        'reason': reason,
+        if (details != null) 'details': details,
+      }),
     );
     return response.statusCode >= 200 && response.statusCode < 300;
   }
@@ -107,7 +139,10 @@ class ProductionServices {
     final response = await http.post(
       Uri.parse('${ApiConstants.baseUrl}${ApiConstants.blocksEndpoint}'),
       headers: headers,
-      body: jsonEncode({'userId': userId, if (reason != null) 'reason': reason}),
+      body: jsonEncode({
+        'userId': userId,
+        if (reason != null) 'reason': reason,
+      }),
     );
     return response.statusCode >= 200 && response.statusCode < 300;
   }
@@ -136,7 +171,9 @@ class ProductionServices {
     final headers = await _headers(json: true);
     if (headers == null) return [];
     final response = await http.post(
-      Uri.parse('${ApiConstants.baseUrl}${ApiConstants.locationSearchEndpoint}'),
+      Uri.parse(
+        '${ApiConstants.baseUrl}${ApiConstants.locationSearchEndpoint}',
+      ),
       headers: headers,
       body: jsonEncode({'query': query}),
     );

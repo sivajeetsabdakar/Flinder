@@ -129,7 +129,10 @@ class ChatContext extends ChangeNotifier {
     await _chatChannel?.sink.close();
     final token = await AuthService.getAuthToken();
     if (token == null) return;
-    final base = Uri.parse(ApiConstants.baseUrl);
+    final base =
+        ApiConstants.baseUrl.isEmpty
+            ? Uri.base
+            : Uri.parse(ApiConstants.baseUrl);
     final uri = Uri(
       scheme: base.scheme == 'https' ? 'wss' : 'ws',
       host: base.host,
@@ -147,7 +150,11 @@ class ChatContext extends ChangeNotifier {
           );
           if (!_messages.any((item) => item.id == message.id)) {
             _messages.add(message);
-            _updateThreadWithLastMessage(chatId, message.content, message.sentAt);
+            _updateThreadWithLastMessage(
+              chatId,
+              message.content,
+              message.sentAt,
+            );
             _messageAddedCallback?.call();
             notifyListeners();
           }
@@ -333,12 +340,17 @@ class ChatContext extends ChangeNotifier {
 
   Future<void> markAsRead(String chatId) async {
     final unreadIds =
-        _messages.where((message) => !message.isRead).map((message) => message.id).toList();
+        _messages
+            .where((message) => !message.isRead)
+            .map((message) => message.id)
+            .toList();
     if (unreadIds.isEmpty) return;
     final headers = await _headers(includeJson: true);
     if (headers == null) return;
     await http.post(
-      Uri.parse('${ApiConstants.baseUrl}/api/conversations/$chatId/messages/read'),
+      Uri.parse(
+        '${ApiConstants.baseUrl}/api/conversations/$chatId/messages/read',
+      ),
       headers: headers,
       body: jsonEncode({'messageIds': unreadIds}),
     );
