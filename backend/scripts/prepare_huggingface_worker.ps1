@@ -59,7 +59,7 @@ import uvicorn
 
 os.environ.setdefault("APP_ENV", "worker")
 os.environ.setdefault("WORKER_ONLY", "true")
-os.environ.setdefault("PORT", "7860")
+os.environ["PORT"] = "7860"
 
 from app.main import app  # noqa: E402
 
@@ -79,7 +79,7 @@ app = gr.mount_gradio_app(app, demo, path="/ui")
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ["PORT"]))
+    uvicorn.run(app, host="0.0.0.0", port=7860)
 '@ | Set-Content -Path (Join-Path $target "app.py") -Encoding utf8
 
 $spaceRequirements = @(
