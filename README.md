@@ -1,109 +1,93 @@
+# Flinder
 
+Flinder is structured as a Flutter mobile app with a Python FastAPI backend and Neon Postgres database.
 
-![Screenshot 2025-04-07 162614](https://github.com/user-attachments/assets/ad89142d-2b34-4bb0-84d2-2032d4511a2c)
-![Screenshot 2025-04-07 162714](https://github.com/user-attachments/assets/bd9448f9-29b0-4265-9891-799a32c70d74)
+## Project Layout
 
-https://github.com/user-attachments/assets/53cc70b4-577d-4c13-b93f-bc47d6ee781a
+```text
+frontend/              Flutter app
+backend/               FastAPI backend
+database/migrations/   Neon/Postgres SQL migrations
+```
 
-System Architecture 
-![image](https://github.com/user-attachments/assets/e4004ceb-b8e3-4947-baa6-ac0648be05dd)
+## Run The Backend
 
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Copy-Item .env.example .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
+Or build the backend container:
 
+```powershell
+cd backend
+docker build -t flinder-backend .
+docker run --env-file .env -p 8000:8000 flinder-backend
+```
 
+For OCI deployment, use the backend deploy guide:
 
-Overall User Flow Of The App
+```powershell
+.\backend\scripts\deploy_oci.ps1 -SshKeyPath C:\path\to\oci_private_key -ApplyMigrations
+```
 
-![image](https://github.com/user-attachments/assets/fee4111e-df58-4e26-9d0a-45c3e29fc7cb)
+See [backend/DEPLOY_OCI.md](backend/DEPLOY_OCI.md).
 
-![image](https://github.com/user-attachments/assets/95909731-433d-4d1e-9fd1-90b5eb8b556d)
+Set `DATABASE_URL` in `backend/.env` to your Neon pooled or direct Postgres connection string.
+Set `GOOGLE_OAUTH_CLIENT_ID` to the Web OAuth client ID from Google Cloud Console.
 
+## Apply Database Schema
 
-Here’s a **shortened intro** for Flinder along with **clear steps to set up the project**:
+```powershell
+psql "$env:DATABASE_URL" -f database/migrations/001_initial_schema.sql
+```
 
----
+If you already applied the initial schema before Google auth was added, also run:
 
-## 🏠 Flinder – Smart Roommate & Flat Finder
+```powershell
+psql "$env:DATABASE_URL" -f database/migrations/002_google_auth.sql
+```
 
-**Flinder** is a modern roommate matching app that uses AI, real-time chat, and a swipe-based interface to help users find compatible flatmates and apply for flats as a group. The platform blends **Supabase** for auth and real-time chat, **Express.js** for API orchestration, and a **Flask-based ML engine** for compatibility scoring based on user bios and lifestyle tags.
+Or run all migrations through the backend venv:
 
----
+```powershell
+cd backend
+.\.venv\Scripts\python.exe scripts\apply_migrations.py
+```
 
-## ⚙️ Project Setup Guide
+## Run The Flutter App
 
-### 1. **Frontend: Flutter App**
-> Handles UI, user interactions, swipes, and real-time messaging.
+```powershell
+cd frontend
+flutter pub get
+flutter run --dart-define=API_BASE_URL=http://localhost:8000 --dart-define=GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+```
 
-- Install Flutter: [Flutter Docs](https://docs.flutter.dev/get-started/install)
-- Clone the repo:  
-  ```bash
-  git clone https://github.com/your-org/flinder-app.git
-  cd flinder-app
-  flutter pub get
-  ```
-- Add environment config (`.env`) with:
-  ```env
-  SUPABASE_URL=your-supabase-url
-  SUPABASE_ANON_KEY=your-anon-key
-  EXPRESS_API_URL=http://your-express-server
-  ```
-- Run on emulator or device:
-  ```bash
-  flutter run
-  ```
+For Android emulator, use your host IP or `http://10.0.2.2:8000` instead of `localhost`.
 
----
+## Google Auth Setup
 
-### 2. **Backend: Express.js API Server**
-> Orchestrates swipes, groups, chat logic, and talks to Supabase & ML engine.
+In Google Cloud Console:
 
-- Navigate to backend:
-  ```bash
-  cd flinder-backend
-  ```
-- Install dependencies:
-  ```bash
-  npm install
-  ```
-- Create `.env`:
-  ```env
-  SUPABASE_URL=your-supabase-url
-  SUPABASE_SERVICE_KEY=your-service-role-key
-  ML_API_URL=http://localhost:5000
-  PORT=3000
-  ```
-- Start server:
-  ```bash
-  npm run dev
-  ```
+1. Create or select a project.
+2. Configure the OAuth consent screen.
+3. Create OAuth client IDs for your Flutter targets.
+4. Use the Web client ID as `GOOGLE_OAUTH_CLIENT_ID` in `backend/.env`.
+5. Pass the same Web client ID to Flutter as `GOOGLE_WEB_CLIENT_ID`.
 
----
+For Android, create an Android OAuth client with the app package name and SHA-1/SHA-256 fingerprints. For iOS, create an iOS OAuth client with the bundle ID and add the reversed client ID to the iOS URL schemes when you enable iOS builds.
 
-### 3. **ML Engine: Flask + Docker**
-> Extracts tags from bios, calculates compatibility scores.
+## Swipe UI
 
-- Navigate to ML service:
-  ```bash
-  cd flinder-ml
-  ```
-- Build & run Docker container:
-  ```bash
-  docker build -t flinder-ml .
-  docker run -p 5000:5000 flinder-ml
-  ```
+The discovery card behaves like a Tinder-style deck:
 
----
+- Swipe right to like.
+- Swipe left to pass.
+- Cards animate smoothly back to center or fly out.
+- Like/pass buttons trigger the same animations.
 
-### 4. **Supabase Setup**
-> Manages auth, users, chats, swipes, groups, and real-time messaging.
-
-- Create a project on [Supabase](https://supabase.com)
-- Enable:
-  - Auth (email/password)
-  - Realtime for `messages`, `swipes`, `groups`
-- Run SQL to create tables:
-  - `users`, `swipes`, `chats`, `messages`, `chat_members`, `groups`, `flats`
-- Get your `SUPABASE_URL` and keys from project settings.
-
-
-
+See [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md) for the remaining launch items.
