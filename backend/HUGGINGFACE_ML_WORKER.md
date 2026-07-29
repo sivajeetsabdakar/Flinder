@@ -1,8 +1,8 @@
 # Hugging Face ML Worker Deployment
 
-The semantic matching worker can run as a Hugging Face Docker Space while the main FastAPI backend stays on OCI.
+The semantic matching worker can run as a Hugging Face Gradio Space while the main FastAPI backend stays on OCI.
 
-Hugging Face Docker Spaces are configured with `sdk: docker` in the Space `README.md`; the default app port is `7860`, and secrets are managed from the Space settings page.
+Docker Spaces may require a paid plan. The generated Space uses `sdk: gradio` with a blank `app.py` that starts the worker FastAPI app on port `7860`. Secrets are managed from the Space settings page.
 
 ## Prepare Space Source
 
@@ -18,7 +18,8 @@ This creates `dist/huggingface-ml-worker`, which is ignored by git and contains 
 
 Create a new Hugging Face Space:
 
-- SDK: Docker
+- SDK: Gradio
+- Template: Blank
 - Visibility: Private is preferred
 - Hardware: free CPU Basic first
 

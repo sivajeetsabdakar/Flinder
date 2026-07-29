@@ -26,13 +26,12 @@ if (Test-Path $target) {
 New-Item -ItemType Directory -Path $target | Out-Null
 Copy-Item -Path (Join-Path $backendRoot "app") -Destination (Join-Path $target "app") -Recurse
 Copy-Item -Path (Join-Path $backendRoot "scripts") -Destination (Join-Path $target "scripts") -Recurse
-Copy-Item -Path (Join-Path $backendRoot "requirements.txt") -Destination (Join-Path $target "requirements.txt")
-Copy-Item -Path (Join-Path $backendRoot "requirements-ml.txt") -Destination (Join-Path $target "requirements-ml.txt")
 
 @'
 ---
 title: Flinder ML Worker
-sdk: docker
+sdk: gradio
+sdk_version: 5.38.2
 app_port: 7860
 ---
 
@@ -49,29 +48,27 @@ Protected endpoints require `X-ML-Worker-Token`.
 '@ | Set-Content -Path (Join-Path $target "README.md") -Encoding utf8
 
 @'
-FROM python:3.12-slim
+import os
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PORT=7860
-ENV WORKER_ONLY=true
-ENV APP_ENV=worker
+import uvicorn
 
-WORKDIR /app
+os.environ.setdefault("APP_ENV", "worker")
+os.environ.setdefault("WORKER_ONLY", "true")
+os.environ.setdefault("PORT", "7860")
 
-COPY requirements.txt .
-COPY requirements-ml.txt .
-RUN pip install --no-cache-dir -r requirements-ml.txt
+from app.main import app  # noqa: E402
 
-COPY app ./app
-COPY scripts ./scripts
 
-EXPOSE 7860
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ["PORT"]))
+'@ | Set-Content -Path (Join-Path $target "app.py") -Encoding utf8
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/internal/ml/health', timeout=5).read()"
-
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
-'@ | Set-Content -Path (Join-Path $target "Dockerfile") -Encoding utf8
+$baseRequirements = Get-Content (Join-Path $backendRoot "requirements.txt")
+$spaceRequirements = @($baseRequirements) + @(
+    "numpy==2.2.6",
+    "sentence-transformers==3.4.1",
+    "gradio==5.38.2"
+)
+$spaceRequirements | Set-Content -Path (Join-Path $target "requirements.txt") -Encoding utf8
 
 Write-Host "Prepared Hugging Face Space source at $target"
