@@ -52,34 +52,86 @@ Protected endpoints require `X-ML-Worker-Token`.
 
 @'
 import os
+import uuid
 
 import gradio as gr
 import spaces
-import uvicorn
+from sqlalchemy import select
 
 os.environ.setdefault("APP_ENV", "worker")
 os.environ.setdefault("WORKER_ONLY", "true")
 os.environ["PORT"] = "7860"
 
-from app.main import app  # noqa: E402
+from app.config import get_settings  # noqa: E402
+from app.database import SessionLocal  # noqa: E402
+from app.models import UserEmbedding  # noqa: E402
+from app.services.semantic_matching import rebuild_user_embedding  # noqa: E402
+
+
+def _check_token(worker_token: str):
+    settings = get_settings()
+    if not settings.ml_worker_token or worker_token != settings.ml_worker_token:
+        raise gr.Error("Invalid worker token")
 
 
 @spaces.GPU(duration=1)
 def zero_gpu_probe():
-    return "Flinder ML worker is ready"
+    return {"status": "ok", "service": "flinder-ml-worker"}
 
 
-demo = gr.Interface(
-    fn=zero_gpu_probe,
-    inputs=None,
-    outputs=gr.Textbox(label="Status"),
-    title="Flinder ML Worker",
-)
-app = gr.mount_gradio_app(app, demo, path="/ui")
+@spaces.GPU(duration=60)
+def rebuild_profile(user_id: str, worker_token: str):
+    _check_token(worker_token)
+    with SessionLocal() as db:
+        try:
+            row = rebuild_user_embedding(db, uuid.UUID(user_id))
+        except ValueError as exc:
+            raise gr.Error(str(exc)) from exc
+        return {
+            "success": row.status == "ready",
+            "userId": str(row.user_id),
+            "status": row.status,
+            "model": row.model_name,
+            "lastEmbeddedAt": row.last_embedded_at.isoformat() if row.last_embedded_at else None,
+            "error": row.error,
+        }
 
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+@spaces.GPU(duration=120)
+def rebuild_missing(limit: int, worker_token: str):
+    _check_token(worker_token)
+    safe_limit = max(1, min(int(limit), 25))
+    with SessionLocal() as db:
+        rows = db.scalars(
+            select(UserEmbedding)
+            .where(UserEmbedding.status.in_(["missing", "stale", "failed"]))
+            .order_by(UserEmbedding.updated_at.asc())
+            .limit(safe_limit)
+        ).all()
+        results = []
+        for row in rows:
+            rebuilt = rebuild_user_embedding(db, row.user_id)
+            results.append({"userId": str(rebuilt.user_id), "status": rebuilt.status, "error": rebuilt.error})
+        return {"success": True, "processed": len(results), "results": results}
+
+
+with gr.Blocks(title="Flinder ML Worker") as demo:
+    gr.Markdown("# Flinder ML Worker")
+    with gr.Row():
+        user_id = gr.Textbox(label="User ID")
+        token = gr.Textbox(label="Worker token", type="password")
+    rebuild_button = gr.Button("Rebuild profile")
+    rebuild_output = gr.JSON(label="Result")
+    rebuild_button.click(rebuild_profile, [user_id, token], rebuild_output, api_name="rebuild_profile")
+
+    limit = gr.Number(label="Missing rebuild limit", value=10, precision=0)
+    missing_button = gr.Button("Rebuild missing")
+    missing_output = gr.JSON(label="Missing result")
+    missing_button.click(rebuild_missing, [limit, token], missing_output, api_name="rebuild_missing")
+    gr.api(zero_gpu_probe, api_name="health")
+
+
+demo.queue().launch(server_name="0.0.0.0", server_port=7860)
 '@ | Set-Content -Path (Join-Path $target "app.py") -Encoding utf8
 
 $spaceRequirements = @(
@@ -90,7 +142,6 @@ $spaceRequirements = @(
     "python-dotenv==1.1.1",
     "pydantic-settings==2.10.1",
     "httpx==0.28.1",
-    "python-multipart==0.0.21",
     "numpy==2.2.6",
     "sentence-transformers==3.4.1",
     "gradio==5.38.2"

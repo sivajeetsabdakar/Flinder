@@ -239,6 +239,15 @@ def trigger_embedding_rebuild(user_id: uuid.UUID) -> None:
     settings = get_settings()
     if not settings.ml_worker_url or not settings.ml_worker_token:
         return
+    if settings.ml_worker_mode.lower() == "gradio":
+        try:
+            from gradio_client import Client
+
+            client = Client(settings.ml_worker_url, hf_token=settings.hf_token or None, verbose=False)
+            client.submit(str(user_id), settings.ml_worker_token, api_name="/rebuild_profile")
+        except Exception:
+            return
+        return
     try:
         httpx.post(
             f"{settings.ml_worker_url.rstrip('/')}/internal/ml/profiles/{user_id}/rebuild",
