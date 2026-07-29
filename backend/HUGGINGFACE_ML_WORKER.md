@@ -25,6 +25,14 @@ Create a new Hugging Face Space:
 
 Push the generated `dist/huggingface-ml-worker` folder contents to that Space repo.
 
+Or run:
+
+```powershell
+.\backend\scripts\push_huggingface_worker.ps1
+```
+
+The script prompts for a Hugging Face write token in your terminal and does not commit it.
+
 ## Space Secrets
 
 Add these as Hugging Face Space secrets, not variables:
