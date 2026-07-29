@@ -6,8 +6,11 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 
 import 'package:flinder_flutter/main.dart';
+import 'package:flinder_flutter/screens/profile/profile_completion_screen.dart';
+import 'package:flinder_flutter/theme/app_theme.dart';
 
 void main() {
   testWidgets('Flinder app shell builds', (WidgetTester tester) async {
@@ -15,5 +18,22 @@ void main() {
     await tester.pump();
 
     expect(find.byType(MyApp), findsOneWidget);
+  });
+
+  testWidgets('profile onboarding quiz starts with mixed preference controls', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.themeData,
+        home: const ProfileCompletionScreen(),
+      ),
+    );
+
+    expect(find.text('Home basics'), findsOneWidget);
+    expect(find.text('Where should we place you?'), findsOneWidget);
+    expect(find.text('Room type'), findsOneWidget);
+    expect(find.text('Budget'), findsOneWidget);
+    expect(find.byType(ChoiceChip), findsWidgets);
   });
 }

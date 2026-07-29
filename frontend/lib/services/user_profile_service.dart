@@ -130,6 +130,16 @@ class UserProfileService {
     required double maxDistance,
     required bool showMeToOthers,
     List<String>? interests,
+    List<String>? homeVibes,
+    List<String>? dealBreakers,
+    String? cookingFrequency,
+    String? guestPolicy,
+    String? petPreference,
+    String? sleepStyle,
+    String? socialBattery,
+    String? conflictStyle,
+    String? moveInTimeline,
+    String? bio,
   }) async {
     try {
       print('$_tag - Saving user preferences');
@@ -157,20 +167,27 @@ class UserProfileService {
           "budget": {"min": budgetValues['min'], "max": budgetValues['max']},
           "roomType": roomType.toLowerCase(),
           "genderPreference": "same_gender",
-          "moveInDate": "2023-05-01",
+          "moveInDate": _moveInDateForTimeline(moveInTimeline),
           "leaseDuration": "long_term",
         },
         "nonCritical": {
+          "bio": bio?.trim(),
           "schedule": _formatSchedule(schedule),
           "noiseLevel": _formatNoiseLevel(noiseLevel),
-          "cookingFrequency": "daily",
+          "cookingFrequency": _formatFrequency(cookingFrequency ?? "Sometimes"),
           "diet": "no_restrictions",
           "smoking": "no",
           "drinking": "occasionally",
-          "pets": "comfortable_with_pets",
+          "pets": _formatPetPreference(petPreference ?? "Pet friendly"),
           "cleaningHabits": _formatCleaningHabits(cleaningHabits),
-          "guestPolicy": "occasional_guests",
+          "guestPolicy": _formatGuestPolicy(guestPolicy ?? "Planned guests"),
           "interests": interests ?? [],
+          "homeVibes": homeVibes ?? [],
+          "dealBreakers": dealBreakers ?? [],
+          "sleepStyle": sleepStyle,
+          "socialBattery": socialBattery,
+          "conflictStyle": conflictStyle,
+          "moveInTimeline": moveInTimeline,
           "interestWeights": {
             "music": 5,
             "gaming": 4,
@@ -263,6 +280,54 @@ class UserProfileService {
     }
   }
 
+  static String _formatFrequency(String frequency) {
+    switch (frequency) {
+      case 'Most days':
+        return 'daily';
+      case 'Rarely':
+        return 'rarely';
+      case 'Sometimes':
+      default:
+        return 'sometimes';
+    }
+  }
+
+  static String _formatGuestPolicy(String guestPolicy) {
+    switch (guestPolicy) {
+      case 'Quiet home':
+        return 'rare_guests';
+      case 'Open house':
+        return 'frequent_guests';
+      case 'Planned guests':
+      default:
+        return 'occasional_guests';
+    }
+  }
+
+  static String _formatPetPreference(String petPreference) {
+    switch (petPreference) {
+      case 'No pets':
+        return 'no_pets';
+      case 'Have a pet':
+        return 'has_pet';
+      case 'Pet friendly':
+      default:
+        return 'comfortable_with_pets';
+    }
+  }
+
+  static String _moveInDateForTimeline(String? timeline) {
+    final now = DateTime.now();
+    final days = switch (timeline) {
+      'This month' => 14,
+      '1-2 months' => 45,
+      '3+ months' => 100,
+      _ => 45,
+    };
+    final target = now.add(Duration(days: days));
+    return target.toIso8601String().split('T').first;
+  }
+
   // Save preferences to Supabase
   static Future<bool> _savePreferencesToSupabase(
     String userId,
@@ -336,10 +401,29 @@ class UserProfileService {
       final criticalPrefs = preferencesData['critical'];
       final nonCriticalPrefs = preferencesData['nonCritical'];
 
+      final interests =
+          (nonCriticalPrefs['interests'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .where((item) => item.trim().isNotEmpty)
+              .toList();
+      final homeVibes =
+          (nonCriticalPrefs['homeVibes'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList();
+      final dealBreakers =
+          (nonCriticalPrefs['dealBreakers'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList();
+      final bio = (nonCriticalPrefs['bio'] as String?)?.trim();
+
       // Construct profile data
       final profileData = {
-        'bio': 'Looking for a great place to live!', // Default bio
-        'interests': ['Music', 'Movies', 'Travel'], // Default interests
+        'bio':
+            bio?.isNotEmpty == true
+                ? bio
+                : 'Looking for a compatible flatmate and a calm home.',
+        'interests':
+            interests.isNotEmpty ? interests : ['Music', 'Movies', 'Travel'],
         'location': {
           'city': criticalPrefs['location']['city'],
           'neighborhood': criticalPrefs['location']['neighborhoods'][0],
@@ -363,6 +447,11 @@ class UserProfileService {
           'pets': nonCriticalPrefs['pets'],
           'cleaningHabits': nonCriticalPrefs['cleaningHabits'],
           'guestPolicy': nonCriticalPrefs['guestPolicy'],
+          'homeVibes': homeVibes,
+          'dealBreakers': dealBreakers,
+          'sleepStyle': nonCriticalPrefs['sleepStyle'],
+          'socialBattery': nonCriticalPrefs['socialBattery'],
+          'conflictStyle': nonCriticalPrefs['conflictStyle'],
         },
         'languages': ['English'],
       };
