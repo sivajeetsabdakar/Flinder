@@ -135,17 +135,13 @@ demo.queue().launch(server_name="0.0.0.0", server_port=7860)
 '@ | Set-Content -Path (Join-Path $target "app.py") -Encoding utf8
 
 $spaceRequirements = @(
-    "fastapi==0.116.1",
-    "uvicorn[standard]==0.35.0",
     "sqlalchemy==2.0.43",
     "psycopg[binary]==3.2.9",
     "python-dotenv==1.1.1",
     "pydantic-settings==2.10.1",
     "httpx==0.28.1",
     "numpy==2.2.6",
-    "sentence-transformers==3.4.1",
-    "sse-starlette==3.3.3",
-    "gradio==5.38.2"
+    "sentence-transformers==3.4.1"
 )
 $spaceRequirements | Set-Content -Path (Join-Path $target "requirements.txt") -Encoding utf8
 
