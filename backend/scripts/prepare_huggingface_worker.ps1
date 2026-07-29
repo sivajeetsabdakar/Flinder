@@ -77,7 +77,6 @@ $spaceRequirements = @(
     "python-multipart==0.0.21",
     "numpy==2.2.6",
     "sentence-transformers==3.4.1",
-    "spaces==0.42.1",
     "gradio==5.38.2"
 )
 $spaceRequirements | Set-Content -Path (Join-Path $target "requirements.txt") -Encoding utf8
