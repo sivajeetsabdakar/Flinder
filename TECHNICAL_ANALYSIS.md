@@ -304,6 +304,357 @@ final_score =
 
 The response includes high-level compatibility reasons and category scores for debugging/admin visibility, but not raw embeddings.
 
+## Mathematical Formulas Used
+
+This section collects the formulas used by the recommender and profile-quality logic. The implementation is intentionally simple enough to be explainable, while still capturing semantic and behavioral signals.
+
+### 1. Source Hash For Embedding Freshness
+
+Before rebuilding embeddings, the backend serializes the user's profile and preferences into a stable JSON payload and hashes it.
+
+```text
+source_hash = SHA256(json(profile, preferences, sorted_keys=true))
+```
+
+If the stored `source_hash` differs from the current hash, the embedding row is marked `stale`.
+
+Purpose:
+
+- avoid rebuilding embeddings when profile data has not changed;
+- detect profile/preference changes cheaply;
+- make worker rebuilds idempotent.
+
+### 2. Cosine Similarity
+
+All vector closeness is based on cosine similarity.
+
+For two vectors `a` and `b`:
+
+```text
+dot(a, b) = sum(a_i * b_i)
+
+||a|| = sqrt(sum(a_i^2))
+||b|| = sqrt(sum(b_i^2))
+
+cosine(a, b) = dot(a, b) / (||a|| * ||b||)
+```
+
+Range:
+
+```text
+-1 <= cosine(a, b) <= 1
+```
+
+Interpretation:
+
+- `1`: very similar direction;
+- `0`: unrelated / orthogonal;
+- `-1`: opposite direction.
+
+The implementation returns `0` if either vector is missing, empty, or mismatched in length.
+
+### 3. Cosine Normalization
+
+Cosine values are converted from `[-1, 1]` into `[0, 1]`.
+
+```text
+normalized_similarity = (cosine(a, b) + 1) / 2
+```
+
+This makes category scores easier to combine with weighted averages.
+
+### 4. Semantic Category Weighted Average
+
+Flinder does not create one generic compatibility vector. It compares separate category vectors:
+
+```text
+C = {hobbies, interests, traits, personality, likes, dislikes}
+```
+
+Current weights:
+
+```text
+w_hobbies      = 0.10
+w_interests    = 0.20
+w_traits       = 0.20
+w_personality  = 0.20
+w_likes        = 0.15
+w_dislikes     = 0.15
+```
+
+For each category `c`:
+
+```text
+s_c = normalized_similarity(current.embedding_c, candidate.embedding_c)
+```
+
+Weighted semantic similarity:
+
+```text
+semantic_weighted =
+    sum(w_c * s_c for c in C) / sum(w_c for c in C)
+```
+
+Because the weights sum to `1.0`, this is effectively:
+
+```text
+semantic_weighted = sum(w_c * s_c)
+```
+
+### 5. Likes/Dislikes Conflict Penalty
+
+The recommender penalizes compatibility when one user's likes are close to the other user's dislikes.
+
+Raw conflict components:
+
+```text
+conflict_1 = max(0, cosine(current.likes, candidate.dislikes))
+conflict_2 = max(0, cosine(current.dislikes, candidate.likes))
+```
+
+Combined conflict:
+
+```text
+raw_conflict = conflict_1 + conflict_2
+```
+
+Weighted and capped conflict:
+
+```text
+conflict_penalty = min(1.0, raw_conflict * 0.18)
+```
+
+Final semantic score before point scaling:
+
+```text
+semantic_final = clamp(semantic_weighted - conflict_penalty, 0.0, 1.0)
+```
+
+Point contribution:
+
+```text
+semantic_points = round(semantic_final * 60)
+```
+
+This means semantic compatibility can contribute up to `60` ranking points.
+
+### 6. Budget Overlap
+
+Budget fit is treated as an interval-overlap problem.
+
+For current user budget interval `[a_min, a_max]` and candidate interval `[b_min, b_max]`:
+
+```text
+budget_overlaps = max(a_min, b_min) <= min(a_max, b_max)
+```
+
+If true:
+
+```text
+budget_points = 12
+```
+
+Otherwise:
+
+```text
+budget_points = 0
+```
+
+### 7. Practical Fit Points
+
+The practical score is additive.
+
+```text
+practical_points =
+    city_points
+  + budget_points
+  + room_preference_points
+  + language_points
+  + move_in_timing_points
+  + recent_activity_points
+```
+
+Current values:
+
+```text
+city_points             = 15 if same city else 0
+budget_points           = 12 if budget intervals overlap else 0
+room_preference_points  = 6  if same room preference or current preference is "any" else 0
+language_points         = 5  if shared_languages is non-empty else 0
+move_in_timing_points   = 4  if move-in dates match else 0
+recent_activity_points  = 5  if candidate was active in the last 7 days else 0
+```
+
+### 8. Swipe-Learning Preference Vector
+
+Swipe learning builds a user-specific preference vector from past swipes.
+
+For every semantic category `c`, the system accumulates vectors from profiles the user has swiped on:
+
+```text
+accumulator_c = zero_vector
+```
+
+For each swipe target embedding `v_c`:
+
+```text
+if action == "like":
+    accumulator_c = accumulator_c + 1.0 * v_c
+
+if action == "pass":
+    accumulator_c = accumulator_c - 0.35 * v_c
+```
+
+The pass weight is smaller than the like weight because a pass can mean many things: bad timing, weak photo, wrong city, or a temporary preference. A like is a stronger positive signal.
+
+The accumulator is normalized:
+
+```text
+learned_vector_c = accumulator_c / ||accumulator_c||
+```
+
+If the norm is zero, the learned vector is unavailable for that category.
+
+### 9. Swipe-Learning Activation Threshold
+
+Swipe learning is available only when there is enough signal:
+
+```text
+signal_count = like_count + pass_count
+
+available =
+    has_vectors
+    and signal_count >= 4
+    and like_count > 0
+```
+
+This prevents a new user's first few random swipes from dominating ranking.
+
+### 10. Swipe-Learning Candidate Score
+
+For each learned category vector:
+
+```text
+learned_similarity_c =
+    normalized_similarity(learned_vector_c, candidate.embedding_c)
+```
+
+Average learned similarity:
+
+```text
+learned_average =
+    sum(learned_similarity_c for available categories) / category_count
+```
+
+Confidence grows with the number of swipe signals:
+
+```text
+confidence = min(1.0, signal_count / 30)
+```
+
+Maximum learning contribution:
+
+```text
+MAX_LEARNING_POINTS = 15
+```
+
+Final learned score:
+
+```text
+learned_points = round(learned_average * MAX_LEARNING_POINTS * confidence)
+```
+
+### 11. Boost Modifier
+
+If the candidate has an active boost:
+
+```text
+boost_points = 30
+```
+
+Otherwise:
+
+```text
+boost_points = 0
+```
+
+### 12. Final Discovery Ranking Score
+
+The implementation computes the final score as:
+
+```text
+final_score =
+    semantic_points
+  + learned_points
+  + practical_points
+  + boost_points
+```
+
+Expanded:
+
+```text
+final_score =
+    round(clamp(weighted_semantic_similarity - conflict_penalty, 0, 1) * 60)
+  + round(learned_average * 15 * confidence)
+  + city_points
+  + budget_points
+  + room_preference_points
+  + language_points
+  + move_in_timing_points
+  + recent_activity_points
+  + boost_points
+```
+
+Candidates are sorted by `final_score` descending, and the API returns the top results.
+
+### 13. Profile Completion Score
+
+Profile completion is also score-based. The profile update endpoint computes a score out of 100.
+
+```text
+completion_score =
+    bio_points
+  + photo_points
+  + location_points
+  + budget_points
+  + lifestyle_points
+  + interests_points
+  + preference_points
+```
+
+Current values:
+
+```text
+bio_points          = 15 if bio length >= 20 else 0
+photo_points        = 20 if at least one profile photo exists else 0
+location_points     = 15 if city/location exists else 0
+budget_points       = 10 if budget exists else 0
+lifestyle_points    = 15 if lifestyle exists else 0
+interests_points    = 15 if interests exist else 0
+preference_points   = 10 if room and gender preferences exist else 0
+```
+
+Profile completion flag:
+
+```text
+profile_completed = completion_score >= 70
+```
+
+Onboarding step:
+
+```text
+if completion_score >= 70:
+    onboarding_step = "complete"
+elif completion_score >= 45:
+    onboarding_step = "preferences"
+elif completion_score >= 20:
+    onboarding_step = "photos"
+else:
+    onboarding_step = "basic"
+```
+
+Discovery is gated on a completion score of at least `70`.
+
 ## Why This Matching Design Is Unique
 
 Most roommate apps rely on basic filters:
