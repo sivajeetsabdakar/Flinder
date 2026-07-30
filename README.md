@@ -1,6 +1,10 @@
 # Flinder
 
+![Flinder AI-Powered Roommate Matching System](docs/assets/flinder-ai-powered-roommate-matching-system.png)
+
 Flinder is structured as a Flutter mobile app with a Python FastAPI backend and Neon Postgres database.
+
+For a deeper breakdown of the semantic matching pipeline, vector embeddings, scoring formulas, and production architecture, see [TECHNICAL_ANALYSIS.md](TECHNICAL_ANALYSIS.md).
 
 ## Project Layout
 
