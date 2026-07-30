@@ -72,15 +72,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _handleAppleLogin() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Apple login not implemented yet'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -225,12 +216,6 @@ class _LoginScreenState extends State<LoginScreen> {
             SocialButton(
               type: SocialButtonType.google,
               onPressed: _handleGoogleLogin,
-              isLoading: isLoading,
-            ),
-            const SizedBox(height: 16),
-            SocialButton(
-              type: SocialButtonType.apple,
-              onPressed: _handleAppleLogin,
               isLoading: isLoading,
             ),
             const SizedBox(height: 32),

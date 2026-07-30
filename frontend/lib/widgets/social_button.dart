@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../theme/app_theme.dart';
+import 'web_google_sign_in_button.dart';
 
 enum SocialButtonType { google, apple, facebook }
 
@@ -17,6 +19,13 @@ class SocialButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb && type == SocialButtonType.google) {
+      return WebGoogleSignInButton(
+        isLoading: isLoading,
+        onAuthenticated: () async => onPressed(),
+      );
+    }
+
     String text;
     IconData? icon;
     Color backgroundColor;

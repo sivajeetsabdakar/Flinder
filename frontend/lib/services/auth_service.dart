@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +15,17 @@ class AuthService {
 
   // Logger tag
   static const String _tag = 'AuthService';
+  static final GoogleSignIn googleSignIn = GoogleSignIn(
+    scopes: const ['email', 'profile'],
+    clientId:
+        ApiConstants.googleWebClientId.isEmpty
+            ? null
+            : ApiConstants.googleWebClientId,
+    serverClientId:
+        kIsWeb || ApiConstants.googleWebClientId.isEmpty
+            ? null
+            : ApiConstants.googleWebClientId,
+  );
 
   // Initialize method - call this at app startup
   static Future<void> initialize() async {
@@ -147,23 +159,33 @@ class AuthService {
 
   static Future<AuthResponse> signInWithGoogle() async {
     try {
-      final googleSignIn = GoogleSignIn(
-        scopes: ['email', 'profile'],
-        clientId:
-            ApiConstants.googleWebClientId.isEmpty
-                ? null
-                : ApiConstants.googleWebClientId,
-        serverClientId:
-            ApiConstants.googleWebClientId.isEmpty
-                ? null
-                : ApiConstants.googleWebClientId,
-      );
-
-      final googleUser = await googleSignIn.signIn();
+      final googleUser =
+          kIsWeb
+              ? await googleSignIn.signInSilently()
+              : await googleSignIn.signIn();
       if (googleUser == null) {
-        return AuthResponse(success: false, message: 'Google sign-in canceled');
+        return AuthResponse(
+          success: false,
+          message:
+              kIsWeb
+                  ? 'Use the Google button to continue'
+                  : 'Google sign-in canceled',
+        );
       }
 
+      return authenticateGoogleAccount(googleUser);
+    } catch (e) {
+      return AuthResponse(
+        success: false,
+        message: 'Google sign-in failed: ${e.toString()}',
+      );
+    }
+  }
+
+  static Future<AuthResponse> authenticateGoogleAccount(
+    GoogleSignInAccount googleUser,
+  ) async {
+    try {
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       if (idToken == null || idToken.isEmpty) {
@@ -208,7 +230,7 @@ class AuthService {
       await prefs.remove('user_data');
       await prefs.remove('auth_token');
       await prefs.remove('user');
-      await GoogleSignIn().signOut();
+      await googleSignIn.signOut();
 
       print('$_tag - User logged out successfully');
       return true;

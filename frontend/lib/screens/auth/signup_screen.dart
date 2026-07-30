@@ -91,15 +91,6 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  void _handleAppleSignup() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Apple signup not implemented yet'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -294,12 +285,6 @@ class _SignupScreenState extends State<SignupScreen> {
             SocialButton(
               type: SocialButtonType.google,
               onPressed: _handleGoogleSignup,
-              isLoading: isLoading,
-            ),
-            const SizedBox(height: 16),
-            SocialButton(
-              type: SocialButtonType.apple,
-              onPressed: _handleAppleSignup,
               isLoading: isLoading,
             ),
             const SizedBox(height: 32),

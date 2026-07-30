@@ -8,6 +8,7 @@ class GradientBackground extends StatelessWidget {
   final List<Widget>? actions;
   final Widget? leading;
   final bool showBackButton;
+  final double maxContentWidth;
 
   const GradientBackground({
     Key? key,
@@ -17,6 +18,7 @@ class GradientBackground extends StatelessWidget {
     this.actions,
     this.leading,
     this.showBackButton = false,
+    this.maxContentWidth = 420,
   }) : super(key: key);
 
   @override
@@ -61,9 +63,15 @@ class GradientBackground extends StatelessWidget {
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: child,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxContentWidth),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: child,
+                ),
+              ),
             ),
           ),
         ),
