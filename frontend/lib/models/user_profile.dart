@@ -60,7 +60,7 @@ class UserProfile {
       final budget = json['preferences']['critical']['budget'];
       final min = budget['min'];
       final max = budget['max'];
-      return '\$${min.toString()}-\$${max.toString()}';
+      return '₹${min.toString()}-₹${max.toString()}';
     }
     return json['budget'] ?? 'Flexible';
   }

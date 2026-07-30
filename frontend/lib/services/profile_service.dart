@@ -199,7 +199,7 @@ class ProfileService {
         city: 'San Francisco',
         neighborhood: 'Mission District',
       ),
-      budget: Budget(min: 1000, max: 2000, currency: 'USD'),
+      budget: Budget(min: 10000, max: 25000, currency: 'INR'),
       roomPreference: 'private',
       genderPreference: 'any_gender',
       moveInDate: '2023-06-01',

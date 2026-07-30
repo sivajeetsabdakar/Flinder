@@ -106,7 +106,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ],
           location: Location(city: 'New York', neighborhood: 'Manhattan'),
-          budget: Budget(min: 1000, max: 2000, currency: 'USD'),
+          budget: Budget(min: 10000, max: 25000, currency: 'INR'),
           roomPreference: 'private',
           genderPreference: 'any_gender',
           moveInDate: 'flexible',

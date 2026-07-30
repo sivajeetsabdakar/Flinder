@@ -160,7 +160,7 @@ class Budget {
     return Budget(
       min: json['min'] ?? 0,
       max: json['max'] ?? 0,
-      currency: json['currency'] ?? 'USD',
+      currency: json['currency'] ?? 'INR',
     );
   }
 

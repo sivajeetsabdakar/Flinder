@@ -241,16 +241,16 @@ class UserProfileService {
   // Helper method to parse budget range string to min/max values
   static Map<String, double> _parseBudgetRange(String budgetRange) {
     switch (budgetRange) {
-      case 'Under \$500':
-        return {'min': 0, 'max': 500};
-      case '\$500-\$1000':
-        return {'min': 500, 'max': 1000};
-      case '\$1000-\$1500':
-        return {'min': 1000, 'max': 1500};
-      case '\$1500+':
-        return {'min': 1500, 'max': 3000};
+      case 'Under ₹10,000':
+        return {'min': 0, 'max': 10000};
+      case '₹10,000-₹20,000':
+        return {'min': 10000, 'max': 20000};
+      case '₹20,000-₹35,000':
+        return {'min': 20000, 'max': 35000};
+      case '₹35,000+':
+        return {'min': 35000, 'max': 75000};
       default:
-        return {'min': 0, 'max': 1000};
+        return {'min': 10000, 'max': 20000};
     }
   }
 
@@ -442,7 +442,7 @@ class UserProfileService {
         'budget': {
           'min': criticalPrefs['budget']['min'],
           'max': criticalPrefs['budget']['max'],
-          'currency': 'USD',
+          'currency': 'INR',
         },
         'roomPreference': criticalPrefs['roomType'],
         'genderPreference': criticalPrefs['genderPreference'],

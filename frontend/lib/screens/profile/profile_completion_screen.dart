@@ -25,7 +25,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   bool _isSaving = false;
 
   String _roomType = 'Private';
-  String _budgetRange = '\$500-\$1000';
+  String _budgetRange = '₹10,000-₹20,000';
   String _moveInTimeline = '1-2 months';
   String _schedule = 'Flexible';
   String _noiseLevel = 'Moderate';
@@ -385,10 +385,10 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
           label: 'Budget',
           value: _budgetRange,
           options: const [
-            'Under \$500',
-            '\$500-\$1000',
-            '\$1000-\$1500',
-            '\$1500+',
+            'Under ₹10,000',
+            '₹10,000-₹20,000',
+            '₹20,000-₹35,000',
+            '₹35,000+',
           ],
           onChanged: (value) => setState(() => _budgetRange = value),
         ),
