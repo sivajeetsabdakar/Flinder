@@ -8,7 +8,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/flinder_logo.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/user_profile_service.dart';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -67,70 +66,16 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  // Function to force set profile as completed - useful for debugging
-  Future<void> _forceProfileCompleted() async {
-    try {
-      print('SplashScreen - FORCING profile completion status to TRUE');
-      final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString('user');
-
-      if (userJson != null) {
-        Map<String, dynamic> userData = jsonDecode(userJson);
-        userData['isProfileCompleted'] = true;
-        await prefs.setString('user', jsonEncode(userData));
-        print('SplashScreen - Successfully forced profile completion status');
-      } else {
-        print(
-          'SplashScreen - Could not force profile completion - no user data found',
-        );
-      }
-    } catch (e) {
-      print('SplashScreen - Error forcing profile completion: $e');
-    }
-  }
-
   Future<void> _navigateToNextScreen(BuildContext context) async {
     print('SplashScreen - Determining next screen');
-
-    // Uncomment this line to force profile as completed when debugging login issues
-    // await _forceProfileCompleted();
 
     // First check shared preferences directly (most reliable for persistence)
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString('user');
       final authToken = prefs.getString('auth_token');
 
-      // If we have auth token and user data
-      if (authToken != null && userJson != null) {
-        try {
-          Map<String, dynamic> userData = jsonDecode(userJson);
-          bool isProfileCompleted = userData['isProfileCompleted'] ?? false;
-
-          // Convert string "true" to boolean true if needed
-          if (userData['isProfileCompleted'] is String) {
-            isProfileCompleted =
-                userData['isProfileCompleted'].toLowerCase() == 'true';
-            // Fix the value directly
-            userData['isProfileCompleted'] = isProfileCompleted;
-            await prefs.setString('user', jsonEncode(userData));
-            print('SplashScreen - Fixed string value for isProfileCompleted');
-          }
-
-          print(
-            'SplashScreen - Found in SharedPreferences: token=${authToken.substring(0, 5)}..., isProfileCompleted=$isProfileCompleted',
-          );
-
-          if (isProfileCompleted) {
-            print(
-              'SplashScreen - Profile is complete according to SharedPreferences, navigating to main',
-            );
-            AppRouter.navigateReplacement(context, AppRouter.mainRoute);
-            return;
-          }
-        } catch (e) {
-          print('SplashScreen - Error parsing user data: $e');
-        }
+      if (authToken != null) {
+        print('SplashScreen - Found auth token in SharedPreferences');
       }
     } catch (e) {
       print('SplashScreen - Error accessing SharedPreferences: $e');
@@ -141,33 +86,19 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (authProvider.isAuthenticated) {
       try {
-        // Check if profile is completed - first check auth provider (which handles hot reloads)
-        final isProfileCompleted = authProvider.user?.profileCompleted ?? false;
+        final shouldShowQuestionnaire =
+            await UserProfileService.shouldShowProfileQuestionnaire();
 
-        if (isProfileCompleted) {
-          // Profile is completed, go to main navigation screen
+        if (shouldShowQuestionnaire) {
           print(
-            'SplashScreen - Profile is complete according to AuthProvider, navigating to main',
+            'SplashScreen - Profile questionnaire not completed or skipped, navigating to profile completion',
+          );
+          AppRouter.navigateToProfileCreation(context);
+        } else {
+          print(
+            'SplashScreen - Profile complete or questionnaire skipped, navigating to main',
           );
           AppRouter.navigateReplacement(context, AppRouter.mainRoute);
-        } else {
-          // Double-check with the service (to ensure consistent behavior)
-          final serviceProfileCompleted =
-              await UserProfileService.isProfileCompleted();
-
-          if (serviceProfileCompleted) {
-            // Profile is completed according to the service, go to main navigation screen
-            print(
-              'SplashScreen - Profile is complete according to UserProfileService, navigating to main',
-            );
-            AppRouter.navigateReplacement(context, AppRouter.mainRoute);
-          } else {
-            // Profile is not completed, redirect to profile completion
-            print(
-              'SplashScreen - Profile is NOT complete, navigating to profile completion',
-            );
-            AppRouter.navigateToProfileCreation(context);
-          }
         }
       } catch (e) {
         // Handle any errors during profile check

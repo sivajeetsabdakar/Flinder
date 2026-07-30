@@ -10,6 +10,35 @@ import '../services/auth_service.dart';
 class UserProfileService {
   // Logger tag
   static const String _tag = 'UserProfileService';
+  static const String _questionnaireSkippedPrefix =
+      'profile_questionnaire_skipped_';
+
+  static Future<String?> _currentUserSkipKey() async {
+    final user = await AuthService.getCurrentUser();
+    if (user == null) return null;
+    return '$_questionnaireSkippedPrefix${user.id}';
+  }
+
+  static Future<bool> hasSkippedProfileQuestionnaire() async {
+    final key = await _currentUserSkipKey();
+    if (key == null) return false;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(key) ?? false;
+  }
+
+  static Future<void> setProfileQuestionnaireSkipped(bool skipped) async {
+    final key = await _currentUserSkipKey();
+    if (key == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, skipped);
+  }
+
+  static Future<bool> shouldShowProfileQuestionnaire() async {
+    final completed = await isProfileCompleted();
+    if (completed) return false;
+    final skipped = await hasSkippedProfileQuestionnaire();
+    return !skipped;
+  }
 
   // Check if user profile is completed
   static Future<bool> isProfileCompleted() async {
@@ -215,6 +244,7 @@ class UserProfileService {
       print('$_tag - Save preferences result: $success');
 
       if (success) {
+        await setProfileQuestionnaireSkipped(false);
         // Mark profile as completed if preferences were saved successfully
         await updateProfileStatus(true);
         return true;

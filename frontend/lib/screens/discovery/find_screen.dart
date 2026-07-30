@@ -7,6 +7,7 @@ import '../../services/production_services.dart';
 import '../../widgets/app_bar_with_logout.dart';
 import '../../widgets/swipe_card.dart';
 import '../../routes/app_router.dart';
+import '../../services/user_profile_service.dart';
 
 class FindScreen extends StatefulWidget {
   const FindScreen({Key? key}) : super(key: key);
@@ -21,6 +22,7 @@ class _FindScreenState extends State<FindScreen> {
   List<UserProfile> _likesReceived = [];
   String? _error;
   bool _isCheckingLikes = false;
+  bool _isProfileCompleted = true;
 
   @override
   void initState() {
@@ -31,10 +33,19 @@ class _FindScreenState extends State<FindScreen> {
   Future<void> _initializeAndLoadData() async {
     final authSuccess = await DiscoverService.ensureBackendAuth();
     log('Backend auth check result: $authSuccess');
+    await _checkProfileCompletion();
 
     // Then load profiles and check for likes
     _loadPotentialMatches();
     _checkForLikes();
+  }
+
+  Future<void> _checkProfileCompletion() async {
+    final completed = await UserProfileService.isProfileCompleted();
+    if (!mounted) return;
+    setState(() {
+      _isProfileCompleted = completed;
+    });
   }
 
   Future<void> _checkForLikes() async {
@@ -127,7 +138,9 @@ class _FindScreenState extends State<FindScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(success ? 'Last swipe rewound' : 'No swipe available to rewind'),
+        content: Text(
+          success ? 'Last swipe rewound' : 'No swipe available to rewind',
+        ),
       ),
     );
     if (success) _loadPotentialMatches();
@@ -138,7 +151,9 @@ class _FindScreenState extends State<FindScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(success ? 'Profile boosted for 24 hours' : 'Could not boost profile'),
+        content: Text(
+          success ? 'Profile boosted for 24 hours' : 'Could not boost profile',
+        ),
       ),
     );
   }
@@ -173,9 +188,63 @@ class _FindScreenState extends State<FindScreen> {
         children: [
           // Show banner if there are likes
           if (_likesReceived.isNotEmpty) _buildLikesBanner(),
+          if (!_isProfileCompleted) _buildCompleteProfileBanner(),
 
           // Main content
           Expanded(child: _buildBody()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompleteProfileBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.darkGrey,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.accentPink.withOpacity(0.45)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryPurple.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.tune, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Complete your profile to find matches',
+                  style: AppTheme.subheadingStyle.copyWith(fontSize: 14),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Answer a few preference questions so Flinder can rank better flatmates for you.',
+                  style: AppTheme.bodyStyle.copyWith(
+                    color: AppTheme.lightGrey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: () {
+              AppRouter.navigateToProfileCreation(context);
+            },
+            child: const Text('Start'),
+          ),
         ],
       ),
     );

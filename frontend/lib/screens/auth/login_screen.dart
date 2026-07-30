@@ -9,6 +9,7 @@ import '../../widgets/gradient_background.dart';
 import '../../widgets/social_button.dart';
 import '../../providers/auth_provider.dart';
 import '../../routes/app_router.dart';
+import '../../services/user_profile_service.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -42,8 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (mounted) {
         if (response.success) {
-          // Navigate to home screen
-          AppRouter.navigateToMain(context);
+          await _navigateAfterAuth();
         } else {
           // Show error message
           ScaffoldMessenger.of(context).showSnackBar(
@@ -64,11 +64,22 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (response.success) {
-      AppRouter.navigateToMain(context);
+      await _navigateAfterAuth();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(response.message), backgroundColor: Colors.red),
       );
+    }
+  }
+
+  Future<void> _navigateAfterAuth() async {
+    final shouldShowQuestionnaire =
+        await UserProfileService.shouldShowProfileQuestionnaire();
+    if (!mounted) return;
+    if (shouldShowQuestionnaire) {
+      AppRouter.navigateToProfileCreation(context);
+    } else {
+      AppRouter.navigateToMain(context);
     }
   }
 

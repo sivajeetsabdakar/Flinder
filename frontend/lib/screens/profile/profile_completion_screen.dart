@@ -177,6 +177,12 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     }
   }
 
+  Future<void> _skipForNow() async {
+    await UserProfileService.setProfileQuestionnaireSkipped(true);
+    if (!mounted) return;
+    AppRouter.navigateToMain(context);
+  }
+
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppTheme.primaryPurple),
@@ -218,6 +224,18 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
             Text(_titles[_step], style: AppTheme.subheadingStyle),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: _isSaving ? null : _skipForNow,
+            child: Text(
+              'Skip Now',
+              style: AppTheme.buttonTextStyle.copyWith(
+                color: AppTheme.lightGrey,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
         centerTitle: true,
       ),
       body: SafeArea(

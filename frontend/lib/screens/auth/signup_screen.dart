@@ -9,6 +9,7 @@ import '../../widgets/gradient_background.dart';
 import '../../widgets/social_button.dart';
 import '../../providers/auth_provider.dart';
 import '../../routes/app_router.dart';
+import '../../services/user_profile_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -52,6 +53,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (mounted) {
         if (response.success) {
+          await UserProfileService.setProfileQuestionnaireSkipped(false);
           // Navigate to profile completion screen
           AppRouter.navigateToProfileCreation(context);
         } else {
@@ -83,6 +85,7 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!mounted) return;
 
     if (response.success) {
+      await UserProfileService.setProfileQuestionnaireSkipped(false);
       AppRouter.navigateToProfileCreation(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
