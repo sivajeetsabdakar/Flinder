@@ -242,13 +242,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           TextField(
             controller: _bioController,
             maxLines: 5,
-            decoration: InputDecoration(
+            style: AppTheme.bodyStyle,
+            cursorColor: AppTheme.accentPink,
+            decoration: AppTheme.inputDecoration(
               hintText: 'Describe yourself...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Colors.grey[100],
             ),
           ),
           const SizedBox(height: 24),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'dart:developer';
 import '../../widgets/bottom_navigation.dart';
@@ -11,6 +12,7 @@ import '../../services/auth_service.dart';
 import '../../services/discover_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../routes/app_router.dart';
+import '../../theme/app_theme.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   // Add optional parameter to allow setting initial tab
@@ -153,35 +155,42 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   // Handle back button press with options to exit app or logout
   Future<bool> _onWillPop(BuildContext context) async {
-    // Show options dialog
     final result = await showDialog<String>(
       context: context,
       builder:
           (context) => AlertDialog(
-            backgroundColor: Colors.black,
+            backgroundColor: AppTheme.darkGrey,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: AppTheme.mediumGrey.withOpacity(0.6)),
+            ),
             title: const Text(
               'What would you like to do?',
               style: TextStyle(color: Colors.white),
             ),
-            content: const Text(
-              'Choose an option below',
-              style: TextStyle(color: Colors.white70),
+            content: Text(
+              kIsWeb
+                  ? 'Stay in Flinder or sign out of this account.'
+                  : 'Stay in Flinder, close the app, or sign out.',
+              style: TextStyle(color: AppTheme.lightGrey),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop('cancel'),
                 child: const Text(
-                  'Cancel',
+                  'Stay',
                   style: TextStyle(color: Colors.white),
                 ),
               ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop('exit'),
-                child: const Text(
-                  'Exit App',
-                  style: TextStyle(color: Colors.purple),
+              if (!kIsWeb)
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop('exit'),
+                  child: const Text(
+                    'Exit App',
+                    style: TextStyle(color: AppTheme.accentPink),
+                  ),
                 ),
-              ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop('logout'),
                 child: const Text(
