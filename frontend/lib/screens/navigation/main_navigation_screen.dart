@@ -7,7 +7,6 @@ import '../discovery/discover_screen.dart';
 import '../discovery/find_screen.dart';
 import '../discovery/liked_you_screen.dart';
 import '../chat/chat_screen.dart';
-import '../../theme/app_theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/discover_service.dart';
 import '../../providers/auth_provider.dart';
@@ -57,8 +56,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     });
 
     try {
-      // Ensure Supabase auth is initialized
-      await DiscoverService.ensureSupabaseAuth();
+      await DiscoverService.ensureApiAuth();
 
       // Get likes from the API
       final likedUsers = await DiscoverService.getLikesReceived();

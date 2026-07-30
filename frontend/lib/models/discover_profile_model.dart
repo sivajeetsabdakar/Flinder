@@ -15,7 +15,7 @@ class DiscoverProfileModel {
   final String? moveInDate;
   final String? generatedDescription;
 
-  // Additional user fields from Supabase
+  // Additional user fields from the API payload.
   final String email;
   final String? phone;
   final String gender;
@@ -73,10 +73,10 @@ class DiscoverProfileModel {
       }
     }
 
-    // Get the UUID, preferring userId from API then id from Supabase
+    // Get the UUID, preferring userId from the API then id.
     final userId = json['userId'] ?? json['id'] ?? '';
 
-    // Get the name from Supabase user data if available, otherwise use a fallback
+    // Get the name from user data when available, otherwise use a fallback.
     final name =
         json['name'] != null && json['name'].toString().trim().isNotEmpty
             ? json['name'].toString()

@@ -29,6 +29,13 @@ def test_admin_dashboard_requires_auth():
     assert response.status_code == 401
 
 
+def test_onboarding_skip_requires_auth():
+    client = TestClient(app)
+    response = client.post("/api/users/me/onboarding/skip")
+
+    assert response.status_code == 401
+
+
 def test_discovery_score_keeps_practical_fit_without_semantic_data():
     class ProfileStub:
         city = "Mumbai"

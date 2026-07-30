@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../theme/app_theme.dart';
 import 'web_google_sign_in_button.dart';
 
-enum SocialButtonType { google, apple, facebook }
+enum SocialButtonType { google }
 
 class SocialButton extends StatelessWidget {
   final SocialButtonType type;
@@ -37,18 +37,6 @@ class SocialButton extends StatelessWidget {
         icon = Icons.g_mobiledata;
         backgroundColor = Colors.white;
         textColor = Colors.black;
-        break;
-      case SocialButtonType.apple:
-        text = "Continue with Apple";
-        icon = Icons.apple;
-        backgroundColor = Colors.black;
-        textColor = Colors.white;
-        break;
-      case SocialButtonType.facebook:
-        text = "Continue with Facebook";
-        icon = Icons.facebook;
-        backgroundColor = const Color(0xFF1877F2);
-        textColor = Colors.white;
         break;
     }
 

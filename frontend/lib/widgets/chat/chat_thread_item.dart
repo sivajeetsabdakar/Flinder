@@ -136,7 +136,7 @@ class ChatThreadItem extends StatelessWidget {
         child: const Icon(Icons.group, color: AppTheme.primaryPurple, size: 24),
       );
     } else if (otherUser != null) {
-      // User avatar - try Supabase storage URL first
+      // User avatar from the API profile payload.
       final String supabaseProfileImageUrl =
           'https://frjdhtasvvyutekzmfgb.supabase.co/storage/v1/object/public/profile/${otherUser.id}.jpg';
 

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../models/auth_response.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class AuthProvider with ChangeNotifier {
   User? _user;
@@ -30,43 +28,8 @@ class AuthProvider with ChangeNotifier {
       // Check if user is logged in
       final isAuth = await AuthService.isAuthenticated();
       if (isAuth) {
-        // Try to read directly from SharedPreferences first for more reliable persistence
-        bool profileCompletedFromPrefs = false;
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final userJson = prefs.getString('user');
-          if (userJson != null) {
-            final userData = jsonDecode(userJson);
-            profileCompletedFromPrefs = userData['isProfileCompleted'] ?? false;
-            print(
-              'AuthProvider - Profile completion from SharedPreferences: $profileCompletedFromPrefs',
-            );
-          }
-        } catch (e) {
-          print('AuthProvider - Error reading from SharedPreferences: $e');
-        }
-
-        // Get user model
-        final userModel = await AuthService.getCurrentUser();
+        final userModel = await AuthService.refreshCurrentUser();
         if (userModel != null) {
-          // Create User from UserModel, ensuring profile completion status is consistent
-          if (profileCompletedFromPrefs &&
-              userModel.isProfileCompleted != true) {
-            // Update the UserModel if SharedPreferences has it as completed
-            userModel.isProfileCompleted = true;
-
-            // Save back the updated status
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString('user', jsonEncode(userModel.toJson()));
-              print(
-                'AuthProvider - Updated UserModel in SharedPreferences with completed status',
-              );
-            } catch (e) {
-              print('AuthProvider - Error updating SharedPreferences: $e');
-            }
-          }
-
           _user = User.fromUserModel(userModel);
           print(
             'AuthProvider - User logged in: ${_user?.email}, profileCompleted: ${_user?.profileCompleted}',

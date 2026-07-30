@@ -12,7 +12,7 @@ class DiscoverService {
     return token != null && token.isNotEmpty;
   }
 
-  static Future<bool> ensureSupabaseAuth() => ensureBackendAuth();
+  static Future<bool> ensureApiAuth() => ensureBackendAuth();
 
   static Future<Map<String, String>?> _authHeaders({
     bool includeJson = false,
@@ -38,7 +38,7 @@ class DiscoverService {
     final headers = await _authHeaders(includeJson: true);
     if (headers == null) return false;
 
-    final action = direction == 'left' ? 'like' : 'pass';
+    final action = direction == 'right' ? 'like' : 'pass';
     final response = await http.post(
       Uri.parse(
         '${ApiConstants.baseUrl}${ApiConstants.discoverEndpoint}/swipe',
@@ -78,7 +78,9 @@ class DiscoverService {
           .toList();
     } catch (e) {
       log('Error loading discover profiles: $e');
-      return ApiConstants.allowDummyFallback ? UserProfile.getDummyProfiles() : [];
+      return ApiConstants.allowDummyFallback
+          ? UserProfile.getDummyProfiles()
+          : [];
     }
   }
 

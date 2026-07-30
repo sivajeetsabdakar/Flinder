@@ -24,6 +24,8 @@ class ApiConstants {
 
   // User Endpoints
   static const String userEndpoint = '/api/users';
+  static const String currentUserEndpoint = '/api/users/me';
+  static const String onboardingSkipEndpoint = '/api/users/me/onboarding/skip';
   static const String userProfileEndpoint = '/api/users/profile';
   static const String userVerificationEndpoint = '/api/users/verification';
 

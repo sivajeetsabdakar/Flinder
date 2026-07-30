@@ -69,6 +69,8 @@ class AuthService {
             email: user.email,
             name: user.name,
             isProfileCompleted: user.profileCompleted,
+            profileQuestionnaireSkipped: user.profileQuestionnaireSkipped,
+            profileCompletionScore: user.profileCompletionScore,
           );
 
           // Save in the new format
@@ -281,6 +283,8 @@ class AuthService {
               email: oldUser.email,
               name: oldUser.name,
               isProfileCompleted: oldUser.profileCompleted,
+              profileQuestionnaireSkipped: oldUser.profileQuestionnaireSkipped,
+              profileCompletionScore: oldUser.profileCompletionScore,
             );
 
             // Save in the new format
@@ -315,6 +319,31 @@ class AuthService {
     } catch (e) {
       print('$_tag - ERROR getting current user: $e');
       return null;
+    }
+  }
+
+  static Future<UserModel?> refreshCurrentUser() async {
+    try {
+      final token = await getAuthToken();
+      if (token == null) return null;
+
+      final response = await http.get(
+        Uri.parse(ApiConstants.baseUrl + ApiConstants.currentUserEndpoint),
+        headers: {'Content-Type': 'application/json', 'Authorization': token},
+      );
+
+      if (response.statusCode != 200) {
+        print('$_tag - Failed to refresh current user: ${response.body}');
+        return getCurrentUser();
+      }
+
+      final responseData = jsonDecode(response.body);
+      final user = User.fromJson(responseData['user']);
+      await _saveUserData(token, user);
+      return getCurrentUser();
+    } catch (e) {
+      print('$_tag - ERROR refreshing current user: $e');
+      return getCurrentUser();
     }
   }
 
@@ -366,6 +395,8 @@ class AuthService {
         email: user.email,
         name: user.name,
         isProfileCompleted: user.profileCompleted,
+        profileQuestionnaireSkipped: user.profileQuestionnaireSkipped,
+        profileCompletionScore: user.profileCompletionScore,
       );
 
       // Save in the new format
@@ -386,10 +417,9 @@ class AuthService {
   // Reset password (placeholder for future implementation)
   static Future<AuthResponse> resetPassword(String email) async {
     try {
-      // Will be implemented when backend supports it
       return AuthResponse(
         success: false,
-        message: 'Password reset functionality not implemented yet',
+        message: 'Flinder v1 uses Google sign-in only.',
       );
     } catch (e) {
       return AuthResponse(success: false, message: 'Error: ${e.toString()}');

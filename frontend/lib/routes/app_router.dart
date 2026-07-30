@@ -4,7 +4,6 @@ import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
-import '../screens/onboarding/home_screen.dart';
 import '../screens/profile/profile_detail_screen.dart';
 import '../screens/discovery/matches_screen.dart';
 import '../screens/onboarding/splash_screen.dart';

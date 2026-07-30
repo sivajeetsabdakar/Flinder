@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
-import '../../services/auth_service.dart';
-import '../../constants/api_constants.dart';
 import '../../routes/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/flinder_logo.dart';
@@ -22,7 +20,6 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _animation;
   late Animation<double> _gradientAnimation;
-  bool _isInitializing = true;
 
   @override
   void initState() {
@@ -59,9 +56,6 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(seconds: 2));
 
     if (mounted) {
-      setState(() {
-        _isInitializing = false;
-      });
       _navigateToNextScreen(context);
     }
   }

@@ -178,9 +178,15 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   }
 
   Future<void> _skipForNow() async {
-    await UserProfileService.setProfileQuestionnaireSkipped(true);
+    final success = await UserProfileService.setProfileQuestionnaireSkipped(
+      true,
+    );
     if (!mounted) return;
-    AppRouter.navigateToMain(context);
+    if (success) {
+      AppRouter.navigateToMain(context);
+    } else {
+      _showSnack('Could not save skip choice. Please try again.');
+    }
   }
 
   void _showSnack(String message) {
@@ -324,21 +330,26 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     required String subtitle,
     required List<Widget> children,
   }) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 140),
-      children: [
-        Text(title, style: AppTheme.headingStyle.copyWith(fontSize: 24)),
-        const SizedBox(height: 8),
-        Text(
-          subtitle,
-          style: AppTheme.bodyStyle.copyWith(
-            color: AppTheme.lightGrey,
-            fontSize: 14,
-          ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 140),
+          children: [
+            Text(title, style: AppTheme.headingStyle.copyWith(fontSize: 24)),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: AppTheme.bodyStyle.copyWith(
+                color: AppTheme.lightGrey,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 22),
+            ...children,
+          ],
         ),
-        const SizedBox(height: 22),
-        ...children,
-      ],
+      ),
     );
   }
 

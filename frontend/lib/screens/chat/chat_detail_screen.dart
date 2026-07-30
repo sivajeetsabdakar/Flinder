@@ -206,7 +206,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         }
       }
 
-      // For 1:1 chats, get the other user's name from Supabase
+      // For 1:1 chats, get the other user's name from the API payload.
       final chatContext = Provider.of<ChatContext>(context, listen: false);
 
       print(

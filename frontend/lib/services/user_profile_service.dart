@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_constants.dart';
-import '../models/user_model.dart';
-import '../models/profile_model.dart';
 import '../services/auth_service.dart';
 
 class UserProfileService {
@@ -20,17 +18,50 @@ class UserProfileService {
   }
 
   static Future<bool> hasSkippedProfileQuestionnaire() async {
+    final user = await AuthService.refreshCurrentUser();
+    if (user?.profileQuestionnaireSkipped != null) {
+      return user!.profileQuestionnaireSkipped!;
+    }
     final key = await _currentUserSkipKey();
     if (key == null) return false;
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(key) ?? false;
   }
 
-  static Future<void> setProfileQuestionnaireSkipped(bool skipped) async {
+  static Future<bool> setProfileQuestionnaireSkipped(bool skipped) async {
     final key = await _currentUserSkipKey();
-    if (key == null) return;
+    if (key == null) return false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(key, skipped);
+
+    final token = await AuthService.getAuthToken();
+    if (token == null) return false;
+
+    final url = '${ApiConstants.baseUrl}${ApiConstants.onboardingSkipEndpoint}';
+    final response =
+        skipped
+            ? await http.post(
+              Uri.parse(url),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token,
+              },
+            )
+            : await http.delete(
+              Uri.parse(url),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token,
+              },
+            );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      await AuthService.refreshCurrentUser();
+      return true;
+    }
+
+    print('$_tag - Failed to update onboarding skip: ${response.body}');
+    return false;
   }
 
   static Future<bool> shouldShowProfileQuestionnaire() async {
@@ -45,7 +76,13 @@ class UserProfileService {
     try {
       print('$_tag - Checking if profile is completed');
 
-      // First check shared preferences directly for more reliable persistence
+      final refreshedUser = await AuthService.refreshCurrentUser();
+      if (refreshedUser != null) {
+        final completed = refreshedUser.isProfileCompleted ?? false;
+        print('$_tag - Profile completion status from backend: $completed');
+        return completed;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString('user');
 
@@ -94,59 +131,7 @@ class UserProfileService {
     }
   }
 
-  // Update the profile completion status
-  static Future<bool> updateProfileStatus(bool isCompleted) async {
-    try {
-      print('$_tag - Updating profile completion status to: $isCompleted');
-
-      // Get the current user
-      final user = await AuthService.getCurrentUser();
-      if (user == null) {
-        print('$_tag - No user found for updating profile status');
-        return false;
-      }
-
-      // Update the user model
-      user.isProfileCompleted = isCompleted;
-
-      // Save in shared preferences - CRITICAL for persistence
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user', jsonEncode(user.toJson()));
-
-      // Double check that it was really saved
-      final savedUserJson = prefs.getString('user');
-      if (savedUserJson != null) {
-        final savedUserData = jsonDecode(savedUserJson);
-        final savedProfileCompleted =
-            savedUserData['isProfileCompleted'] ?? false;
-        print(
-          '$_tag - Profile completion status after save: $savedProfileCompleted',
-        );
-
-        // If not saved correctly, force it again
-        if (isCompleted && !savedProfileCompleted) {
-          print(
-            '$_tag - Forced update of isProfileCompleted in SharedPreferences',
-          );
-          Map<String, dynamic> userData = jsonDecode(savedUserJson);
-          userData['isProfileCompleted'] = true;
-          await prefs.setString('user', jsonEncode(userData));
-        }
-      }
-
-      print('$_tag - User profile status updated in local storage');
-
-      // Update in the backend (Supabase)
-      await _updateUserProfileInBackend(user);
-
-      return true;
-    } catch (e) {
-      print('$_tag - ERROR updating profile status: $e');
-      return false;
-    }
-  }
-
-  // Save user preferences to Supabase
+  // Save user preferences to the FastAPI backend.
   static Future<bool> savePreferences({
     required String city,
     required String roomType,
@@ -236,17 +221,13 @@ class UserProfileService {
 
       print('$_tag - Sending preferences data: ${jsonEncode(preferencesData)}');
 
-      // Send to Supabase API
-      final success = await _savePreferencesToSupabase(
-        user.id,
-        preferencesData,
-      );
+      // Send to the API.
+      final success = await _savePreferencesToApi(user.id, preferencesData);
       print('$_tag - Save preferences result: $success');
 
       if (success) {
         await setProfileQuestionnaireSkipped(false);
-        // Mark profile as completed if preferences were saved successfully
-        await updateProfileStatus(true);
+        await AuthService.refreshCurrentUser();
         return true;
       }
 
@@ -358,8 +339,8 @@ class UserProfileService {
     return target.toIso8601String().split('T').first;
   }
 
-  // Save preferences to Supabase
-  static Future<bool> _savePreferencesToSupabase(
+  // Save preferences to the backend API.
+  static Future<bool> _savePreferencesToApi(
     String userId,
     Map<String, dynamic> preferencesData,
   ) async {
@@ -501,44 +482,6 @@ class UserProfileService {
     } catch (e) {
       print('$_tag - ERROR creating/updating profile: $e');
       return false;
-    }
-  }
-
-  // Update user profile in the backend
-  static Future<void> _updateUserProfileInBackend(UserModel user) async {
-    final url =
-        '${ApiConstants.baseUrl}${ApiConstants.userEndpoint}/${user.id}';
-    print('$_tag - API CALL: PUT $url');
-
-    try {
-      final token = await AuthService.getAuthToken();
-      if (token == null) {
-        print('$_tag - No auth token available for profile update');
-        return;
-      }
-
-      final requestBody = {'isProfileCompleted': user.isProfileCompleted};
-      print('$_tag - Request body: ${jsonEncode(requestBody)}');
-      print(
-        '$_tag - Request headers: Authorization: ${token.substring(0, min(10, token.length))}..., Content-Type: application/json',
-      );
-
-      final response = await http.put(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json', 'Authorization': token},
-        body: jsonEncode(requestBody),
-      );
-
-      print('$_tag - Response status: ${response.statusCode}');
-      print('$_tag - Response body: ${response.body}');
-
-      if (response.statusCode != 200) {
-        print(
-          '$_tag - Failed to update user profile in backend: ${response.body}',
-        );
-      }
-    } catch (e) {
-      print('$_tag - ERROR updating user profile in backend: $e');
     }
   }
 

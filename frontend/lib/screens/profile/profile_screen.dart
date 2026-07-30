@@ -94,15 +94,15 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
       if (file == null) return;
       await ProductionServices.uploadProfilePhoto(file: file, isPrimary: true);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo uploaded')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo uploaded')));
       _loadUserProfile();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Photo upload failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Photo upload failed: $e')));
     }
   }
 
@@ -127,9 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              // TODO: Navigate to settings screen
-            },
+            onPressed: _showAccountSettings,
           ),
         ],
       ),
@@ -662,17 +660,13 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
         _buildActionButton(
           icon: Icons.settings,
           label: 'Account Settings',
-          onTap: () {
-            // TODO: Navigate to settings
-          },
+          onTap: _showAccountSettings,
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           icon: Icons.help_outline,
           label: 'Help & Support',
-          onTap: () {
-            // TODO: Navigate to help
-          },
+          onTap: _showHelp,
         ),
       ],
     );
@@ -762,6 +756,77 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
         }
         return moveInDate;
     }
+  }
+
+  void _showAccountSettings() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.darkGrey,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder:
+          (context) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Account Settings',
+                    style: AppTheme.subheadingStyle.copyWith(fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.tune, color: Colors.white),
+                    title: const Text('Retake preference quiz'),
+                    subtitle: Text(
+                      'Update your match signals anytime.',
+                      style: TextStyle(color: AppTheme.lightGrey),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      AppRouter.navigateToProfileCreation(context);
+                    },
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.logout, color: Colors.white),
+                    title: const Text('Logout'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await AuthService.logout();
+                      if (!mounted) return;
+                      AppRouter.navigateToLogin(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  void _showHelp() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppTheme.darkGrey,
+            title: const Text('Help & Support'),
+            content: const Text(
+              'For launch support, contact the Flinder team from the email linked to your Google account.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+    );
   }
 }
 

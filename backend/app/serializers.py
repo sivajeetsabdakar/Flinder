@@ -28,6 +28,8 @@ def user_to_client(user: User) -> dict[str, Any]:
         "email": user.email,
         "name": user.name,
         "profileCompleted": bool(user.profile_completed),
+        "profileQuestionnaireSkipped": bool(getattr(user, "profile_questionnaire_skipped_at", None)),
+        "profileCompletionScore": getattr(user.profile, "completion_score", 0) if getattr(user, "profile", None) else 0,
         "onlineStatus": user.online_status,
         "createdAt": iso(user.created_at),
         "verificationStatus": user.verification_status,

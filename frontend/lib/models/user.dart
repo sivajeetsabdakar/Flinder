@@ -3,6 +3,8 @@ class User {
   final String email;
   final String name;
   final bool profileCompleted;
+  final bool profileQuestionnaireSkipped;
+  final int profileCompletionScore;
   final String? onlineStatus;
   final DateTime? lastOnline;
   final DateTime? createdAt;
@@ -13,6 +15,8 @@ class User {
     required this.email,
     required this.name,
     required this.profileCompleted,
+    this.profileQuestionnaireSkipped = false,
+    this.profileCompletionScore = 0,
     this.onlineStatus,
     this.lastOnline,
     this.createdAt,
@@ -25,6 +29,8 @@ class User {
       email: json['email'],
       name: json['name'],
       profileCompleted: json['profileCompleted'] ?? false,
+      profileQuestionnaireSkipped: json['profileQuestionnaireSkipped'] ?? false,
+      profileCompletionScore: json['profileCompletionScore'] ?? 0,
       onlineStatus: json['onlineStatus'],
       lastOnline:
           json['lastOnline'] != null
@@ -46,6 +52,9 @@ class User {
       email: userModel.email,
       name: userModel.name ?? 'User',
       profileCompleted: userModel.isProfileCompleted ?? false,
+      profileQuestionnaireSkipped:
+          userModel.profileQuestionnaireSkipped ?? false,
+      profileCompletionScore: userModel.profileCompletionScore ?? 0,
       onlineStatus: userModel.onlineStatus,
       lastOnline: userModel.lastOnline,
       createdAt: userModel.createdAt,
@@ -65,6 +74,8 @@ class User {
       'email': email,
       'name': name,
       'profileCompleted': profileCompleted,
+      'profileQuestionnaireSkipped': profileQuestionnaireSkipped,
+      'profileCompletionScore': profileCompletionScore,
       'onlineStatus': onlineStatus,
       'lastOnline': lastOnline?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),

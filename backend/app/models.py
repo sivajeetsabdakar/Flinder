@@ -22,6 +22,7 @@ class User(Base):
     date_of_birth: Mapped[date | None] = mapped_column(Date)
     gender: Mapped[str] = mapped_column(Text, nullable=False)
     profile_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    profile_questionnaire_skipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     verification_status: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     online_status: Mapped[str] = mapped_column(Text, default="offline")
     last_active: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

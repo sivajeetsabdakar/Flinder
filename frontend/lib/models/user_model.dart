@@ -3,6 +3,8 @@ class UserModel {
   final String email;
   final String? name;
   bool? isProfileCompleted;
+  bool? profileQuestionnaireSkipped;
+  int? profileCompletionScore;
   final String? onlineStatus;
   final DateTime? lastOnline;
   final DateTime? createdAt;
@@ -13,6 +15,8 @@ class UserModel {
     required this.email,
     this.name,
     this.isProfileCompleted = false,
+    this.profileQuestionnaireSkipped = false,
+    this.profileCompletionScore = 0,
     this.onlineStatus,
     this.lastOnline,
     this.createdAt,
@@ -25,6 +29,8 @@ class UserModel {
       email: json['email'],
       name: json['name'],
       isProfileCompleted: json['isProfileCompleted'] ?? false,
+      profileQuestionnaireSkipped: json['profileQuestionnaireSkipped'] ?? false,
+      profileCompletionScore: json['profileCompletionScore'] ?? 0,
       onlineStatus: json['onlineStatus'],
       lastOnline:
           json['lastOnline'] != null
@@ -42,6 +48,8 @@ class UserModel {
       'email': email,
       'name': name,
       'isProfileCompleted': isProfileCompleted ?? false,
+      'profileQuestionnaireSkipped': profileQuestionnaireSkipped ?? false,
+      'profileCompletionScore': profileCompletionScore ?? 0,
       'onlineStatus': onlineStatus,
       'lastOnline': lastOnline?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
@@ -55,6 +63,8 @@ class UserModel {
     String? email,
     String? name,
     bool? isProfileCompleted,
+    bool? profileQuestionnaireSkipped,
+    int? profileCompletionScore,
     String? onlineStatus,
     DateTime? lastOnline,
     DateTime? createdAt,
@@ -65,6 +75,10 @@ class UserModel {
       email: email ?? this.email,
       name: name ?? this.name,
       isProfileCompleted: isProfileCompleted ?? this.isProfileCompleted,
+      profileQuestionnaireSkipped:
+          profileQuestionnaireSkipped ?? this.profileQuestionnaireSkipped,
+      profileCompletionScore:
+          profileCompletionScore ?? this.profileCompletionScore,
       onlineStatus: onlineStatus ?? this.onlineStatus,
       lastOnline: lastOnline ?? this.lastOnline,
       createdAt: createdAt ?? this.createdAt,

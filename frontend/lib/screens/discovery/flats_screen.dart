@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../models/flat_model.dart';
 import '../../services/flat_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_bar_with_logout.dart';
 import '../../widgets/flats/flat_item.dart';
 import '../../widgets/flats/flat_filters.dart';
 import '../../routes/app_router.dart';

@@ -158,7 +158,9 @@ class ProfileService {
         }
 
         log('No potential matches found from API');
-        return ApiConstants.allowDummyFallback ? UserProfile.getDummyProfiles() : [];
+        return ApiConstants.allowDummyFallback
+            ? UserProfile.getDummyProfiles()
+            : [];
       } else {
         throw Exception(
           'Failed to load potential matches: ${response.statusCode}',
@@ -166,11 +168,13 @@ class ProfileService {
       }
     } catch (e) {
       log('Error getting potential matches: $e');
-      return ApiConstants.allowDummyFallback ? UserProfile.getDummyProfiles() : [];
+      return ApiConstants.allowDummyFallback
+          ? UserProfile.getDummyProfiles()
+          : [];
     }
   }
 
-  // Create a dummy profile for testing
+  // Debug-only profile used when ALLOW_DUMMY_FALLBACK is enabled.
   static ProfileModel getDummyProfile() {
     return ProfileModel(
       userId: '123456',

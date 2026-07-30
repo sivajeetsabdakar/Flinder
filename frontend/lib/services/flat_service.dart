@@ -47,8 +47,8 @@ class FlatService {
     } catch (e) {
       print('Error fetching flats: $e');
 
-      // Return dummy data for testing
-      return _getDummyFlats();
+      if (ApiConstants.allowDummyFallback) return _getDummyFlats();
+      rethrow;
     }
   }
 
@@ -66,7 +66,7 @@ class FlatService {
     } catch (e) {
       print('Error fetching flat details: $e');
 
-      // Return dummy data for testing
+      if (!ApiConstants.allowDummyFallback) rethrow;
       final dummyData = _getDummyFlats();
       final dummyFlats = dummyData['flats'] as List<FlatModel>;
 
@@ -78,7 +78,7 @@ class FlatService {
     }
   }
 
-  // Generate dummy flats data for testing
+  // Debug-only flats used when ALLOW_DUMMY_FALLBACK is enabled.
   static Map<String, dynamic> _getDummyFlats() {
     final flats = [
       FlatModel(
