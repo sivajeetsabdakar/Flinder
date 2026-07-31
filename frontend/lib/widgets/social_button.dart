@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../theme/app_theme.dart';
 import 'web_google_sign_in_button.dart';
 
@@ -8,12 +9,14 @@ enum SocialButtonType { google }
 class SocialButton extends StatelessWidget {
   final SocialButtonType type;
   final VoidCallback onPressed;
+  final Future<void> Function(GoogleSignInAccount account)? onGoogleAccount;
   final bool isLoading;
 
   const SocialButton({
     Key? key,
     required this.type,
     required this.onPressed,
+    this.onGoogleAccount,
     this.isLoading = false,
   }) : super(key: key);
 
@@ -22,7 +25,7 @@ class SocialButton extends StatelessWidget {
     if (kIsWeb && type == SocialButtonType.google) {
       return WebGoogleSignInButton(
         isLoading: isLoading,
-        onAuthenticated: () async => onPressed(),
+        onAuthenticated: onGoogleAccount ?? (_) async => onPressed(),
       );
     }
 

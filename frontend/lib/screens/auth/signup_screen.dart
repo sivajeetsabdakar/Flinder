@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
@@ -17,9 +18,12 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  Future<void> _handleGoogleSignup() async {
+  Future<void> _handleGoogleSignup([GoogleSignInAccount? account]) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final response = await authProvider.signInWithGoogle();
+    final response =
+        account == null
+            ? await authProvider.signInWithGoogle()
+            : await authProvider.authenticateGoogleAccount(account);
 
     if (!mounted) return;
 
@@ -74,7 +78,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 36),
                 SocialButton(
                   type: SocialButtonType.google,
-                  onPressed: _handleGoogleSignup,
+                  onPressed: () => _handleGoogleSignup(),
+                  onGoogleAccount: _handleGoogleSignup,
                   isLoading: authProvider.isLoading,
                 ),
                 const SizedBox(height: 20),

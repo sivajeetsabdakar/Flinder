@@ -163,7 +163,7 @@ class AuthService {
     try {
       final googleUser =
           kIsWeb
-              ? await googleSignIn.signInSilently()
+              ? googleSignIn.currentUser ?? await googleSignIn.signInSilently()
               : await googleSignIn.signIn();
       if (googleUser == null) {
         return AuthResponse(

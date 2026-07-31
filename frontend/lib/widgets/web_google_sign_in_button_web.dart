@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_sign_in_web/web_only.dart' as google_web;
 
 import '../services/auth_service.dart';
 
 Widget buildWebGoogleSignInButton({
   required bool isLoading,
-  required Future<void> Function() onAuthenticated,
+  required Future<void> Function(GoogleSignInAccount account) onAuthenticated,
 }) {
   return _GoogleIdentityButton(
     isLoading: isLoading,
@@ -17,7 +18,7 @@ Widget buildWebGoogleSignInButton({
 
 class _GoogleIdentityButton extends StatefulWidget {
   final bool isLoading;
-  final Future<void> Function() onAuthenticated;
+  final Future<void> Function(GoogleSignInAccount account) onAuthenticated;
 
   const _GoogleIdentityButton({
     required this.isLoading,
@@ -41,7 +42,7 @@ class _GoogleIdentityButtonState extends State<_GoogleIdentityButton> {
       if (account == null || _handlingAccount) return;
       _handlingAccount = true;
       try {
-        await widget.onAuthenticated();
+        await widget.onAuthenticated(account);
       } finally {
         _handlingAccount = false;
       }

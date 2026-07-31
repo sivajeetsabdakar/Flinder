@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../models/auth_response.dart';
@@ -132,6 +133,35 @@ class AuthProvider with ChangeNotifier {
 
     try {
       final response = await AuthService.signInWithGoogle();
+
+      if (response.success && response.user != null) {
+        _user = response.user;
+      } else {
+        _error = response.message;
+      }
+
+      return response;
+    } catch (e) {
+      _error = e.toString();
+      return AuthResponse(
+        success: false,
+        message: 'Google sign-in failed: ${e.toString()}',
+      );
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<AuthResponse> authenticateGoogleAccount(
+    GoogleSignInAccount account,
+  ) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await AuthService.authenticateGoogleAccount(account);
 
       if (response.success && response.user != null) {
         _user = response.user;
