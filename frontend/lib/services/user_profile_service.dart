@@ -31,8 +31,6 @@ class UserProfileService {
   static Future<bool> setProfileQuestionnaireSkipped(bool skipped) async {
     final key = await _currentUserSkipKey();
     if (key == null) return false;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(key, skipped);
 
     final token = await AuthService.getAuthToken();
     if (token == null) return false;
@@ -56,11 +54,16 @@ class UserProfileService {
             );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(key, skipped);
       await AuthService.refreshCurrentUser();
       return true;
     }
 
-    print('$_tag - Failed to update onboarding skip: ${response.body}');
+    print(
+      '$_tag - Failed to update onboarding skip: '
+      '${response.statusCode} ${response.body}',
+    );
     return false;
   }
 
