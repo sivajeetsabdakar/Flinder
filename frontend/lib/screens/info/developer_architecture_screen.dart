@@ -1,175 +1,630 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
-import '../../widgets/gradient_background.dart';
-
 class DeveloperArchitectureScreen extends StatelessWidget {
   const DeveloperArchitectureScreen({super.key});
 
+  static const _bg = Color(0xFF090B12);
+  static const _panel = Color(0xFF101522);
+  static const _panelSoft = Color(0xFF151B2B);
+  static const _border = Color(0xFF273247);
+  static const _text = Color(0xFFE8EDF7);
+  static const _muted = Color(0xFFAAB4C3);
+  static const _accent = Color(0xFF8B5CF6);
+  static const _accent2 = Color(0xFF22D3EE);
+
   @override
   Widget build(BuildContext context) {
-    return GradientBackground(
-      useAppBar: true,
-      showBackButton: true,
-      title: 'How Flinder Works',
-      maxContentWidth: 1160,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 88, 0, 36),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _HeroIntro(),
-            const SizedBox(height: 24),
-            _ArchitectureImage(),
-            const SizedBox(height: 28),
-            const Wrap(
-              spacing: 14,
-              runSpacing: 14,
-              children: [
-                _MetricPill(label: 'Frontend', value: 'Flutter Web + Android'),
-                _MetricPill(label: 'Backend', value: 'FastAPI on OCI'),
-                _MetricPill(label: 'Database', value: 'Neon PostgreSQL'),
-                _MetricPill(label: 'AI/ML', value: 'Embeddings + LLM traits'),
-              ],
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: _bg,
+        foregroundColor: _text,
+        elevation: 0,
+        title: const Text('Flinder Technical Architecture'),
+        centerTitle: false,
+      ),
+      body: Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 48),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1120),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _DocHeader(),
+                  SizedBox(height: 22),
+                  _ArchitectureImage(),
+                  SizedBox(height: 26),
+                  _StackGrid(),
+                  SizedBox(height: 28),
+                  _DocSection(
+                    title: 'Executive Summary',
+                    paragraphs: [
+                      'Flinder is a production-oriented roommate and flatmate discovery platform built with Flutter, FastAPI, Neon Postgres, Google OAuth, OCI infrastructure, Vercel hosting, Firebase notifications, OCI Object Storage, and a separate ML worker for semantic matching.',
+                      'The product uses a Tinder-like interaction model, but its core technical differentiator is the recommender. Instead of only matching exact enums such as night owl, music, vegetarian, or quiet home, Flinder builds semantic embeddings for roommate compatibility categories and ranks users by meaning, practical fit, safety rules, and learned swipe behavior.',
+                    ],
+                  ),
+                  _DocSection(
+                    title: 'Why The Matching Is Different',
+                    bullets: [
+                      'Natural language compatibility: free-text lifestyle descriptions affect recommendations.',
+                      'Category-specific embeddings: hobbies, interests, traits, personality, likes, and dislikes are modeled separately.',
+                      'Conflict-aware scoring: if one user likes something another user dislikes, a semantic penalty is applied.',
+                      'Swipe learning: likes and passes gradually tune future recommendations.',
+                      'LLM enrichment without LLM ranking: the LLM extracts traits once per profile change; ranking remains deterministic and cheap.',
+                      'Graceful fallback: if embeddings are missing, discovery still works with practical scoring.',
+                    ],
+                  ),
+                  _PipelineSection(),
+                  _DataModelSection(),
+                  _ScoringSection(),
+                  _DeploymentSection(),
+                  _ApiSection(),
+                  _TradeoffsSection(),
+                ],
+              ),
             ),
-            const SizedBox(height: 28),
-            _Section(
-              title: 'What Makes It Unique',
-              body:
-                  'Flinder is not a normal enum-based roommate matcher. The app captures structured preferences, free-text personality signals, likes, dislikes, habits, budget, location, and swipe behavior. The backend then blends practical constraints with semantic vector similarity, so profiles can match by meaning even when users write different words.',
-            ),
-            _Section(
-              title: 'AI Matching Pipeline',
-              body:
-                  'When a user updates their profile, FastAPI builds category-specific canonical text for hobbies, interests, traits, personality, likes, and dislikes. An optional LLM pass extracts normalized roommate traits as JSON. A separate ML worker generates sentence-transformer embeddings and stores them in Neon inside the user_embeds table.',
-            ),
-            _Section(
-              title: 'Recommendation Engine',
-              body:
-                  'Discovery first applies hard filters: profile completion, blocks, already-swiped users, location, and availability. Candidates are then ranked with semantic compatibility, budget and room fit, city match, language overlap, move-in timing, recent activity, boost status, and learned swipe preferences.',
-            ),
-            const _FormulaPanel(),
-            _Section(
-              title: 'Swipe Learning',
-              body:
-                  'Flinder learns from behavior after enough swipes exist. Liked profiles push the user preference vector positively, while passed profiles pull it away with a smaller negative weight. This makes recommendations more personal over time without retraining a large model.',
-            ),
-            _Section(
-              title: 'Production Architecture',
-              body:
-                  'Flutter Web is hosted on Vercel and proxies /api requests to the OCI FastAPI backend. Neon stores relational product data and vectors. OCI Object Storage handles profile photos. Firebase Cloud Messaging supports Android push. The ML worker runs separately so the main API stays lightweight and responsive.',
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _HeroIntro extends StatelessWidget {
+class _DocHeader extends StatelessWidget {
+  const _DocHeader();
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'For Recruiters and Developers',
-          style: AppTheme.headingStyle.copyWith(fontSize: 34),
-        ),
-        const SizedBox(height: 10),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 820),
-          child: Text(
-            'A technical walkthrough of Flinder: a production-oriented roommate matching app with Flutter, FastAPI, Neon, OCI, realtime chat, and AI-powered semantic recommendations.',
-            style: AppTheme.bodyStyle.copyWith(
-              color: AppTheme.lightGrey,
-              fontSize: 16,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: _boxDecoration(),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Kicker('FOR RECRUITERS AND DEVELOPERS'),
+          SizedBox(height: 10),
+          Text(
+            'AI-Powered Roommate Matching System',
+            style: TextStyle(
+              color: DeveloperArchitectureScreen._text,
+              fontSize: 34,
+              height: 1.08,
+              fontWeight: FontWeight.w800,
             ),
           ),
-        ),
-      ],
+          SizedBox(height: 12),
+          Text(
+            'A technical walkthrough of Flinder: architecture, data model, semantic vector matching, LLM trait extraction, swipe-learning personalization, deployment, and production tradeoffs.',
+            style: TextStyle(
+              color: DeveloperArchitectureScreen._muted,
+              fontSize: 16,
+              height: 1.55,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _ArchitectureImage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.34),
-          border: Border.all(color: AppTheme.lightPurple.withOpacity(0.35)),
-        ),
-        child: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 4,
-          child: Image.asset(
-            'assets/architecture/flinder-ai-powered-roommate-matching-system.png',
-            fit: BoxFit.contain,
-            width: double.infinity,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricPill extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _MetricPill({required this.label, required this.value});
+  const _ArchitectureImage();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 220),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
-      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: _boxDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: AppTheme.bodyStyle.copyWith(
-              color: AppTheme.lightPurple,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          const Padding(
+            padding: EdgeInsets.fromLTRB(6, 4, 6, 12),
+            child: Text(
+              'System Architecture',
+              style: TextStyle(
+                color: DeveloperArchitectureScreen._text,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(value, style: AppTheme.subheadingStyle.copyWith(fontSize: 15)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              'assets/architecture/flinder-ai-powered-roommate-matching-system.png',
+              fit: BoxFit.contain,
+              width: double.infinity,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              'The image is intentionally static on this page, so mouse-wheel scrolling moves the document instead of zooming the diagram.',
+              style: TextStyle(
+                color: DeveloperArchitectureScreen._muted,
+                fontSize: 13,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _Section extends StatelessWidget {
+class _StackGrid extends StatelessWidget {
+  const _StackGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      (
+        'Frontend',
+        'Flutter Web and Android, Provider state, Google Sign-In, swipe UI, map UI, FCM client hooks.',
+      ),
+      (
+        'Backend',
+        'FastAPI, SQLAlchemy, JWT auth, REST APIs, WebSockets, admin routes, notification services.',
+      ),
+      (
+        'Database',
+        'Neon PostgreSQL with users, profiles, preferences, swipes, matches, chats, photos, reports, and user_embeds.',
+      ),
+      (
+        'AI / ML',
+        'Sentence Transformers, all-MiniLM-L6-v2, cosine similarity, LLM trait extraction, swipe-learning vectors.',
+      ),
+      (
+        'Storage',
+        'OCI Object Storage for profile photo uploads, validation, primary photo selection, and cleanup.',
+      ),
+      (
+        'Deployment',
+        'Vercel hosts Flutter Web and rewrites /api to the OCI FastAPI backend over current HTTP.',
+      ),
+    ];
+
+    return Wrap(
+      spacing: 14,
+      runSpacing: 14,
+      children: [
+        for (final item in items)
+          _InfoCard(title: item.$1, body: item.$2, width: 350),
+      ],
+    );
+  }
+}
+
+class _PipelineSection extends StatelessWidget {
+  const _PipelineSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _DocSection(
+      title: 'Semantic Matching Pipeline',
+      ordered: [
+        'Flutter onboarding captures mixed-format signals: single-choice options, sliders, range sliders, multi-select chips, budget, location, preferences, and free-text bio.',
+        'FastAPI builds canonical text for hobbies, interests, traits, personality, likes, and dislikes. It merges profile bio, selected interests, lifestyle fields, generated descriptions, preferences, and LLM-extracted traits.',
+        'The optional LLM pass extracts normalized roommate traits as JSON. It is not used for pairwise ranking, which keeps discovery cheaper, reproducible, and easier to debug.',
+        'The ML worker generates 384-dimensional embeddings using all-MiniLM-L6-v2 and stores category vectors in user_embeds.',
+        'Discovery loads stored embeddings, applies hard safety/practical filters, computes semantic similarity, subtracts conflict penalties, and blends practical plus behavioral scores.',
+      ],
+    );
+  }
+}
+
+class _DataModelSection extends StatelessWidget {
+  const _DataModelSection();
+
+  @override
+  Widget build(BuildContext context) {
+    const rows = [
+      (
+        'users',
+        'Identity, Google subject, role, account status, profile completion, onboarding skip state.',
+      ),
+      (
+        'profiles',
+        'Roommate profile, location, budget, lifestyle, languages, completion score.',
+      ),
+      ('preferences', 'Critical and non-critical matching preferences.'),
+      (
+        'user_embeds',
+        'Category embeddings, model_name, source_hash, llm_traits, canonical_text, status, error, timestamps.',
+      ),
+      ('swipes / matches', 'Like/pass history and mutual-like match records.'),
+      (
+        'chats / messages',
+        'Conversation state, chat members, realtime message history, read state.',
+      ),
+      (
+        'reports / blocks',
+        'Safety, moderation, account review, and visibility enforcement.',
+      ),
+      (
+        'notifications / device_info',
+        'Push notification creation, delivery status, and registered devices.',
+      ),
+      (
+        'geocode_cache',
+        'Cached city/location lookups to reduce external map/geocoder calls.',
+      ),
+    ];
+
+    return _DocBlock(
+      title: 'Data Model Highlights',
+      child: Column(
+        children: [
+          for (final row in rows) _TableRowLike(label: row.$1, value: row.$2),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScoringSection extends StatelessWidget {
+  const _ScoringSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _DocBlock(
+      title: 'Matching Math And Ranking',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Paragraph(
+            'The recommender combines semantic compatibility, practical fit, swipe-learning personalization, boosts, and safety filters. Raw embeddings are never exposed to normal users.',
+          ),
+          SizedBox(height: 14),
+          _CodePanel(
+            lines: [
+              'source_hash = SHA256(json(profile, preferences, sorted_keys=true))',
+              '',
+              'dot(a, b) = sum(a_i * b_i)',
+              '||a|| = sqrt(sum(a_i^2))',
+              'cosine(a, b) = dot(a, b) / (||a|| * ||b||)',
+              'normalized_similarity = (cosine(a, b) + 1) / 2',
+              '',
+              'semantic_weighted = sum(w_c * s_c for c in categories)',
+              'conflict_penalty = min(1.0, raw_conflict * 0.18)',
+              'semantic_points = round(clamp(semantic_weighted - conflict_penalty, 0, 1) * 60)',
+              '',
+              'confidence = min(1.0, signal_count / 30)',
+              'learned_points = round(learned_average * 15 * confidence)',
+              '',
+              'final_score = semantic_points + learned_points + practical_points + boost_points',
+            ],
+          ),
+          SizedBox(height: 14),
+          _Paragraph(
+            'Current semantic weights are hobbies 0.10, interests 0.20, traits 0.20, personality 0.20, likes 0.15, and dislikes 0.15. Practical points include same city, overlapping budget range, room preference, shared languages, move-in timing, and recent activity.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeploymentSection extends StatelessWidget {
+  const _DeploymentSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _DocSection(
+      title: 'Production Deployment Model',
+      bullets: [
+        'Flutter Web is deployed from the frontend root to Vercel and builds to build/web.',
+        'Vercel rewrites /api/* to the OCI FastAPI backend, avoiding browser CORS pain while the backend is still on HTTP.',
+        'FastAPI runs in a Docker container on an OCI Compute VM and loads production secrets from .env only.',
+        'Neon Postgres stores relational product data and embeddings as arrays for v1.',
+        'OCI Object Storage stores uploaded profile photos.',
+        'The ML worker runs separately on Hugging Face Space or future OCI A1, keeping PyTorch/SentenceTransformer dependencies out of the main API container.',
+        'Firebase Cloud Messaging handles Android push notifications, with delivery status persisted for auditability.',
+      ],
+    );
+  }
+}
+
+class _ApiSection extends StatelessWidget {
+  const _ApiSection();
+
+  @override
+  Widget build(BuildContext context) {
+    const endpoints = [
+      'POST /api/auth/google',
+      'GET /api/users/me',
+      'POST /api/users/me/onboarding/skip',
+      'GET /api/profile/me',
+      'PUT /api/profile/me',
+      'POST /api/profile/photos/upload',
+      'GET /api/discover',
+      'POST /api/discover/swipe',
+      'POST /api/discover/swipe/rewind',
+      'GET /api/discover/likes',
+      'GET /api/conversations',
+      'WS /api/conversations/{id}/ws',
+      'POST /api/reports',
+      'POST /api/blocks',
+      'POST /internal/ml/profiles/{user_id}/rebuild',
+    ];
+
+    return _DocBlock(
+      title: 'API Surface Highlights',
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [for (final endpoint in endpoints) _EndpointChip(endpoint)],
+      ),
+    );
+  }
+}
+
+class _TradeoffsSection extends StatelessWidget {
+  const _TradeoffsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _DocSection(
+      title: 'Engineering Tradeoffs And Next Steps',
+      bullets: [
+        'Embeddings are stored as Postgres arrays instead of pgvector. This keeps v1 simple and cheap; pgvector or ANN search can be added as scale grows.',
+        'LLM extraction is optional. If the AI API fails, matching falls back to raw profile and preference text.',
+        'The main API avoids ML dependencies to protect memory, startup time, and request latency on the small OCI VM.',
+        'The backend currently uses HTTP behind the Vercel frontend proxy. A real API domain and HTTPS termination should be added before a serious public launch.',
+        'Future improvements: scheduled stale embedding rebuilds, admin explainability views, structured logging, richer E2E tests, photo moderation, and production error tracking.',
+      ],
+    );
+  }
+}
+
+class _DocSection extends StatelessWidget {
+  final String title;
+  final List<String> paragraphs;
+  final List<String> bullets;
+  final List<String> ordered;
+
+  const _DocSection({
+    required this.title,
+    this.paragraphs = const [],
+    this.bullets = const [],
+    this.ordered = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _DocBlock(
+      title: title,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final paragraph in paragraphs) _Paragraph(paragraph),
+          if (bullets.isNotEmpty)
+            for (final bullet in bullets) _Bullet(bullet),
+          if (ordered.isNotEmpty)
+            for (var i = 0; i < ordered.length; i++)
+              _NumberedBullet(number: i + 1, text: ordered[i]),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocBlock extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _DocBlock({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 22),
+      padding: const EdgeInsets.all(22),
+      decoration: _boxDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: DeveloperArchitectureScreen._text,
+              fontSize: 24,
+              height: 1.2,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
   final String title;
   final String body;
+  final double width;
 
-  const _Section({required this.title, required this.body});
+  const _InfoCard({
+    required this.title,
+    required this.body,
+    required this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: DeveloperArchitectureScreen._panel,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: DeveloperArchitectureScreen._border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: DeveloperArchitectureScreen._accent2,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            body,
+            style: const TextStyle(
+              color: DeveloperArchitectureScreen._muted,
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Paragraph extends StatelessWidget {
+  final String text;
+
+  const _Paragraph(this.text);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 22),
-      child: Column(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: DeveloperArchitectureScreen._muted,
+          fontSize: 15,
+          height: 1.62,
+        ),
+      ),
+    );
+  }
+}
+
+class _Bullet extends StatelessWidget {
+  final String text;
+
+  const _Bullet(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTheme.subheadingStyle.copyWith(fontSize: 21)),
-          const SizedBox(height: 8),
-          Text(
-            body,
-            style: AppTheme.bodyStyle.copyWith(color: AppTheme.lightGrey),
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: SizedBox(
+              width: 6,
+              height: 6,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: DeveloperArchitectureScreen._accent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: _Paragraph(text)),
+        ],
+      ),
+    );
+  }
+}
+
+class _NumberedBullet extends StatelessWidget {
+  final int number;
+  final String text;
+
+  const _NumberedBullet({required this.number, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: DeveloperArchitectureScreen._panelSoft,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: DeveloperArchitectureScreen._border),
+            ),
+            child: Text(
+              '$number',
+              style: const TextStyle(
+                color: DeveloperArchitectureScreen._accent2,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: _Paragraph(text)),
+        ],
+      ),
+    );
+  }
+}
+
+class _TableRowLike extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _TableRowLike({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: DeveloperArchitectureScreen._border),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 190,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: DeveloperArchitectureScreen._accent2,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: DeveloperArchitectureScreen._muted,
+                height: 1.45,
+              ),
+            ),
           ),
         ],
       ),
@@ -177,51 +632,83 @@ class _Section extends StatelessWidget {
   }
 }
 
-class _FormulaPanel extends StatelessWidget {
-  const _FormulaPanel();
+class _CodePanel extends StatelessWidget {
+  final List<String> lines;
+
+  const _CodePanel({required this.lines});
 
   @override
   Widget build(BuildContext context) {
-    const formulas = [
-      'cosine(a, b) = dot(a, b) / (||a|| * ||b||)',
-      'normalized_similarity = (cosine(a, b) + 1) / 2',
-      'semantic_weighted = sum(w_c * s_c for c in categories)',
-      'conflict_penalty = min(1.0, raw_conflict * 0.18)',
-      'semantic_points = round(semantic_final * 60)',
-      'confidence = min(1.0, signal_count / 30)',
-    ];
-
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 22),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.32),
+        color: const Color(0xFF070A10),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.accentPink.withOpacity(0.28)),
+        border: Border.all(color: DeveloperArchitectureScreen._border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Core Scoring Formulas',
-            style: AppTheme.subheadingStyle.copyWith(fontSize: 21),
-          ),
-          const SizedBox(height: 12),
-          for (final formula in formulas)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                formula,
-                style: AppTheme.bodyStyle.copyWith(
-                  color: Colors.white,
-                  fontFamily: 'monospace',
-                  fontSize: 14,
-                ),
-              ),
-            ),
-        ],
+      child: Text(
+        lines.join('\n'),
+        style: const TextStyle(
+          color: DeveloperArchitectureScreen._text,
+          fontFamily: 'monospace',
+          fontSize: 13,
+          height: 1.55,
+        ),
       ),
     );
   }
+}
+
+class _EndpointChip extends StatelessWidget {
+  final String endpoint;
+
+  const _EndpointChip(this.endpoint);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: DeveloperArchitectureScreen._panelSoft,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: DeveloperArchitectureScreen._border),
+      ),
+      child: Text(
+        endpoint,
+        style: const TextStyle(
+          color: DeveloperArchitectureScreen._text,
+          fontFamily: 'monospace',
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
+
+class _Kicker extends StatelessWidget {
+  final String text;
+
+  const _Kicker(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: DeveloperArchitectureScreen._accent2,
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0,
+      ),
+    );
+  }
+}
+
+BoxDecoration _boxDecoration() {
+  return BoxDecoration(
+    color: DeveloperArchitectureScreen._panel,
+    borderRadius: BorderRadius.circular(8),
+    border: Border.all(color: DeveloperArchitectureScreen._border),
+  );
 }
