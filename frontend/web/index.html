@@ -67,12 +67,6 @@
     <img src="icons/Icon-192.png" alt="Flinder">
   </div>
   <script>
-    window.addEventListener('wheel', function (event) {
-      if (event.ctrlKey) {
-        event.stopImmediatePropagation();
-      }
-    }, { capture: true, passive: true });
-
     window.addEventListener('flutter-first-frame', function () {
       var splash = document.querySelector('.flinder-web-splash');
       if (splash) {
