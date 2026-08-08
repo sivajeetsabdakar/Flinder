@@ -179,28 +179,8 @@ class _DocHeader extends StatelessWidget {
   }
 }
 
-class _ArchitectureImage extends StatefulWidget {
+class _ArchitectureImage extends StatelessWidget {
   const _ArchitectureImage();
-
-  @override
-  State<_ArchitectureImage> createState() => _ArchitectureImageState();
-}
-
-class _ArchitectureImageState extends State<_ArchitectureImage> {
-  final TransformationController _controller = TransformationController();
-  double _scale = 1;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _setScale(double nextScale) {
-    final clamped = nextScale.clamp(1.0, 3.2).toDouble();
-    setState(() => _scale = clamped);
-    _controller.value = Matrix4.identity()..scale(clamped);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,85 +205,18 @@ class _ArchitectureImageState extends State<_ArchitectureImage> {
                     ),
                   ),
                 ),
-                _ZoomButton(
-                  icon: Icons.remove_rounded,
-                  tooltip: 'Zoom out',
-                  onPressed: () => _setScale(_scale - 0.25),
-                ),
-                const SizedBox(width: 8),
-                _ZoomButton(
-                  icon: Icons.refresh_rounded,
-                  tooltip: 'Reset zoom',
-                  onPressed: () => _setScale(1),
-                ),
-                const SizedBox(width: 8),
-                _ZoomButton(
-                  icon: Icons.add_rounded,
-                  tooltip: 'Zoom in',
-                  onPressed: () => _setScale(_scale + 0.25),
-                ),
               ],
             ),
           ),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Container(
-              color: const Color(0xFF07101D),
-              child: InteractiveViewer(
-                transformationController: _controller,
-                minScale: 1,
-                maxScale: 3.2,
-                boundaryMargin: const EdgeInsets.all(80),
-                trackpadScrollCausesScale: false,
-                onInteractionUpdate: (details) {
-                  final scale = _controller.value.getMaxScaleOnAxis();
-                  if ((scale - _scale).abs() > 0.01) {
-                    setState(() => _scale = scale);
-                  }
-                },
-                child: Image.asset(
-                  'assets/architecture/flinder-ai-powered-roommate-matching-system.png',
-                  fit: BoxFit.contain,
-                  width: double.infinity,
-                ),
-              ),
+            child: Image.asset(
+              'assets/architecture/flinder-ai-powered-roommate-matching-system.png',
+              fit: BoxFit.contain,
+              width: double.infinity,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ZoomButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  const _ZoomButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: DeveloperArchitectureScreen._panelSoft,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: DeveloperArchitectureScreen._border),
-          ),
-          child: Icon(icon, color: DeveloperArchitectureScreen._text, size: 18),
-        ),
       ),
     );
   }
