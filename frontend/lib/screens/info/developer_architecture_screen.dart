@@ -210,17 +210,6 @@ class _ArchitectureImage extends StatelessWidget {
               width: double.infinity,
             ),
           ),
-          const SizedBox(height: 10),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 6),
-            child: Text(
-              'The image is intentionally static on this page, so mouse-wheel scrolling moves the document instead of zooming the diagram.',
-              style: TextStyle(
-                color: DeveloperArchitectureScreen._muted,
-                fontSize: 13,
-              ),
-            ),
-          ),
         ],
       ),
     );
