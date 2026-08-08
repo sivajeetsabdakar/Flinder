@@ -52,40 +52,80 @@ class _LoginScreenState extends State<LoginScreen> {
     final isLoading = authProvider.isLoading;
 
     return GradientBackground(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24.0,
-              vertical: 48.0,
+      maxContentWidth: 1180,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20.0),
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: Tooltip(
+                message: 'If you want to explore how it works, Click here',
+                waitDuration: const Duration(milliseconds: 250),
+                child: TextButton.icon(
+                  onPressed:
+                      () => AppRouter.navigateToDeveloperArchitecture(context),
+                  icon: const Icon(Icons.code_rounded, size: 18),
+                  label: const Text('For Recruiters and Developers'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white.withOpacity(0.08),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      side: BorderSide(
+                        color: AppTheme.lightPurple.withOpacity(0.45),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                FlinderLogo(isCircular: false, size: 120, showTagline: true),
-                const SizedBox(height: 32),
-                Text(
-                  "Welcome Back",
-                  style: AppTheme.headingStyle,
-                  textAlign: TextAlign.center,
+            const SizedBox(height: 18),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 28.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      FlinderLogo(
+                        isCircular: false,
+                        size: 120,
+                        showTagline: true,
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        "Welcome Back",
+                        style: AppTheme.headingStyle,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Continue with Google to find compatible flatmates",
+                        style: TextStyle(
+                          color: AppTheme.lightGrey,
+                          fontSize: 16,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 40),
+                      SocialButton(
+                        type: SocialButtonType.google,
+                        onPressed: () => _handleGoogleLogin(),
+                        onGoogleAccount: _handleGoogleLogin,
+                        isLoading: isLoading,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  "Continue with Google to find compatible flatmates",
-                  style: TextStyle(color: AppTheme.lightGrey, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-                SocialButton(
-                  type: SocialButtonType.google,
-                  onPressed: () => _handleGoogleLogin(),
-                  onGoogleAccount: _handleGoogleLogin,
-                  isLoading: isLoading,
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

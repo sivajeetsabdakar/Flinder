@@ -76,6 +76,7 @@ flutter:
     - assets/logos/Circle_Logo.png
     - assets/logos/Square_Logo.jpg
     - assets/logos/flinder_mark.png
+    - assets/architecture/flinder-ai-powered-roommate-matching-system.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

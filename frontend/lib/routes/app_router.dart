@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
+import '../screens/info/developer_architecture_screen.dart';
 import '../screens/profile/profile_detail_screen.dart';
 import '../screens/discovery/matches_screen.dart';
 import '../screens/onboarding/splash_screen.dart';
@@ -39,6 +40,7 @@ class AppRouter {
   static const String flatDetailRoute = '/flat-detail';
   static const String flatsScreenRoute = '/flats';
   static const String myApplicationsRoute = '/my-applications';
+  static const String developerArchitectureRoute = '/architecture';
 
   // Tab indices
   static const int profileTab = 0;
@@ -105,6 +107,10 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const FlatsScreen());
       case myApplicationsRoute:
         return MaterialPageRoute(builder: (_) => const MyApplicationsScreen());
+      case developerArchitectureRoute:
+        return MaterialPageRoute(
+          builder: (_) => const DeveloperArchitectureScreen(),
+        );
       // Other routes will be added here as they are implemented
       default:
         return MaterialPageRoute(
@@ -196,5 +202,9 @@ class AppRouter {
   // Navigation helper for my applications screen
   static void navigateToMyApplications(BuildContext context) {
     Navigator.pushNamed(context, myApplicationsRoute);
+  }
+
+  static void navigateToDeveloperArchitecture(BuildContext context) {
+    Navigator.pushNamed(context, developerArchitectureRoute);
   }
 }
