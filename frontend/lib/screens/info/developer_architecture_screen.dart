@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-class DeveloperArchitectureScreen extends StatelessWidget {
+import '../../utils/external_link_launcher.dart';
+
+class DeveloperArchitectureScreen extends StatefulWidget {
   const DeveloperArchitectureScreen({super.key});
 
   static const _bg = Color(0xFF090B12);
@@ -13,19 +15,41 @@ class DeveloperArchitectureScreen extends StatelessWidget {
   static const _accent2 = Color(0xFF22D3EE);
 
   @override
+  State<DeveloperArchitectureScreen> createState() =>
+      _DeveloperArchitectureScreenState();
+}
+
+class _DeveloperArchitectureScreenState
+    extends State<DeveloperArchitectureScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: DeveloperArchitectureScreen._bg,
       appBar: AppBar(
-        backgroundColor: _bg,
-        foregroundColor: _text,
+        backgroundColor: DeveloperArchitectureScreen._bg,
+        foregroundColor: DeveloperArchitectureScreen._text,
         elevation: 0,
         title: const Text('Flinder Technical Architecture'),
         centerTitle: false,
+        actions: const [_GithubRepoButton(), SizedBox(width: 12)],
       ),
       body: Scrollbar(
+        controller: _scrollController,
         thumbVisibility: true,
+        trackVisibility: true,
+        interactive: true,
+        thickness: 12,
+        radius: const Radius.circular(999),
         child: SingleChildScrollView(
+          controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 48),
           child: Center(
             child: ConstrainedBox(
@@ -67,6 +91,50 @@ class DeveloperArchitectureScreen extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GithubRepoButton extends StatelessWidget {
+  const _GithubRepoButton();
+
+  static const _repoUrl = 'https://github.com/sivajeetsabdakar/Flinder';
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Open GitHub repository',
+      child: TextButton(
+        onPressed: () => openExternalLink(_repoUrl),
+        style: TextButton.styleFrom(
+          foregroundColor: DeveloperArchitectureScreen._text,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+            side: const BorderSide(color: DeveloperArchitectureScreen._border),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipOval(
+              child: Image.network(
+                'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
+                width: 22,
+                height: 22,
+                errorBuilder:
+                    (_, __, ___) => const Icon(
+                      Icons.code_rounded,
+                      color: DeveloperArchitectureScreen._text,
+                      size: 20,
+                    ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('GitHub', style: TextStyle(fontWeight: FontWeight.w800)),
+          ],
         ),
       ),
     );
