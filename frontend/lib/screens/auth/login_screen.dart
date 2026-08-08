@@ -83,12 +83,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   onGoogleAccount: _handleGoogleLogin,
                   isLoading: isLoading,
                 ),
-                const SizedBox(height: 18),
-                Text(
-                  "New users will answer a quick preference quiz after sign-in.",
-                  style: TextStyle(color: AppTheme.lightGrey, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
               ],
             ),
           ),
